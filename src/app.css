@@ -5,25 +5,23 @@
 /* =========================================================
    DESIGN TOKENS
    ---------------------------------------------------------
-   One coherent system: flat surfaces, a single accent colour,
-   a consistent radius scale, and depth expressed as shadow.
+   Neumorphism: surfaces are the same colour as the page, and
+   depth comes from a paired light/dark shadow — raised for
+   interactive elements, inset for pressed state and inputs.
 
-   The previous version mixed neumorphism (soft raised/inset
-   shadows) with brutalist elements (thick black borders and
-   hard offset shadows) and used six unrelated accent colours
-   on the same screen. That combination is what made the UI
-   look machine-generated, so it has been replaced with a
-   single restrained palette.
+   Each theme defines its own --neu-light / --neu-dark derived
+   from the surface colour, so the effect stays correct in every
+   palette instead of looking like a grey box on a dark page.
    ========================================================= */
 :root {
 	/* Slate — default dark palette */
-	--surface-0: #0b0d10;
-	--surface-1: #12151a;
-	--surface-2: #191d24;
-	--surface-3: #222731;
+	--surface-0: #1b1e24;
+	--surface-1: #1b1e24;
+	--surface-2: #20242b;
+	--surface-3: #262b33;
 
 	--content-primary: #e8eaed;
-	--content-muted: #9aa1ad;
+	--content-muted: #a2a9b5;
 	--content-subtle: #868e9c;
 
 	--accent: #5b8def;
@@ -31,8 +29,16 @@
 	--accent-soft: rgba(91, 141, 239, 0.14);
 	--accent-on: #0b0d10;
 
-	--line: rgba(255, 255, 255, 0.08);
-	--line-strong: rgba(255, 255, 255, 0.14);
+	--line: rgba(255, 255, 255, 0.07);
+	--line-strong: rgba(255, 255, 255, 0.13);
+
+	/* Neumorphic shadow pair, derived from the surface colour. */
+	--neu-light: #23272e;
+	--neu-dark: #131519;
+	--neu-sm: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+	--neu-md: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
+	--neu-lg: 8px 8px 18px var(--neu-dark), -8px -8px 18px var(--neu-light);
+	--neu-inset: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
 
 	/* Semantic colours, used only for status — never for decoration. */
 	--positive: #34d399;
@@ -43,119 +49,134 @@
 }
 
 [data-theme='ocean'] {
-	--surface-0: #071417;
-	--surface-1: #0c1c20;
-	--surface-2: #12262b;
-	--surface-3: #193037;
+	--surface-0: #0f1d21;
+	--surface-1: #0f1d21;
+	--surface-2: #14252a;
+	--surface-3: #1a2f35;
 	--content-primary: #e4f3f5;
-	--content-muted: #8fa9ad;
+	--content-muted: #9db6ba;
 	--content-subtle: #7d979c;
 	--accent: #22d3ee;
 	--accent-hover: #4fddf2;
 	--accent-soft: rgba(34, 211, 238, 0.14);
 	--accent-on: #04191c;
-	--line: rgba(255, 255, 255, 0.08);
-	--line-strong: rgba(255, 255, 255, 0.14);
+	--line: rgba(255, 255, 255, 0.07);
+	--line-strong: rgba(255, 255, 255, 0.13);
+	--neu-light: #16282d;
+	--neu-dark: #081316;
 }
 
 [data-theme='forest'] {
-	--surface-0: #0a1210;
-	--surface-1: #0f1a16;
-	--surface-2: #15241e;
-	--surface-3: #1c2f28;
+	--surface-0: #121c17;
+	--surface-1: #121c17;
+	--surface-2: #17241e;
+	--surface-3: #1d2d26;
 	--content-primary: #e6f2eb;
-	--content-muted: #90a89b;
+	--content-muted: #9fb6a8;
 	--content-subtle: #7e968a;
 	--accent: #34d399;
 	--accent-hover: #4ee0ab;
 	--accent-soft: rgba(52, 211, 153, 0.14);
 	--accent-on: #04160f;
-	--line: rgba(255, 255, 255, 0.08);
-	--line-strong: rgba(255, 255, 255, 0.14);
+	--line: rgba(255, 255, 255, 0.07);
+	--line-strong: rgba(255, 255, 255, 0.13);
+	--neu-light: #192720;
+	--neu-dark: #0a1210;
 }
 
 [data-theme='amber'] {
-	--surface-0: #14100a;
-	--surface-1: #1c1710;
-	--surface-2: #262016;
-	--surface-3: #31291d;
+	--surface-0: #1c1810;
+	--surface-1: #1c1810;
+	--surface-2: #241f15;
+	--surface-3: #2c261a;
 	--content-primary: #f5ede0;
-	--content-muted: #b0a189;
+	--content-muted: #bcae96;
 	--content-subtle: #9a8d76;
 	--accent: #f0b429;
 	--accent-hover: #f5c451;
 	--accent-soft: rgba(240, 180, 41, 0.14);
 	--accent-on: #1a1206;
-	--line: rgba(255, 255, 255, 0.08);
-	--line-strong: rgba(255, 255, 255, 0.14);
+	--line: rgba(255, 255, 255, 0.07);
+	--line-strong: rgba(255, 255, 255, 0.13);
+	--neu-light: #251f15;
+	--neu-dark: #110e09;
 }
 
-/* Light mode — same structure, inverted surfaces. */
+/* Light mode — same structure, inverted surfaces. Neumorphic shadows are
+   inverted too, so elements still look raised rather than pressed in. */
 [data-theme='slate-light'] {
-	--surface-0: #ffffff;
-	--surface-1: #f7f8fa;
-	--surface-2: #eef0f4;
-	--surface-3: #e3e6ec;
+	--surface-0: #eef1f6;
+	--surface-1: #eef1f6;
+	--surface-2: #e7ebf1;
+	--surface-3: #dfe4ec;
 	--content-primary: #14171c;
-	--content-muted: #5a6272;
+	--content-muted: #4f5766;
 	--content-subtle: #626a78;
 	--accent: #3b6fd4;
 	--accent-hover: #2f5fbb;
 	--accent-soft: rgba(59, 111, 212, 0.1);
 	--accent-on: #ffffff;
-	--line: rgba(0, 0, 0, 0.09);
-	--line-strong: rgba(0, 0, 0, 0.16);
+	--line: rgba(0, 0, 0, 0.07);
+	--line-strong: rgba(0, 0, 0, 0.14);
+	--neu-light: #ffffff;
+	--neu-dark: #ccd2dd;
 	color-scheme: light;
 }
 
 [data-theme='ocean-light'] {
-	--surface-0: #ffffff;
-	--surface-1: #f4fafb;
-	--surface-2: #e6f3f5;
-	--surface-3: #d5e9ec;
+	--surface-0: #e9f4f6;
+	--surface-1: #e9f4f6;
+	--surface-2: #dfeef1;
+	--surface-3: #d3e7eb;
 	--content-primary: #0c2126;
-	--content-muted: #4a6d74;
+	--content-muted: #43636b;
 	--content-subtle: #52707a;
 	--accent: #0e93ab;
 	--accent-hover: #0b7c90;
 	--accent-soft: rgba(14, 147, 171, 0.1);
 	--accent-on: #ffffff;
-	--line: rgba(0, 0, 0, 0.09);
-	--line-strong: rgba(0, 0, 0, 0.16);
+	--line: rgba(0, 0, 0, 0.07);
+	--line-strong: rgba(0, 0, 0, 0.14);
+	--neu-light: #ffffff;
+	--neu-dark: #c4d9de;
 	color-scheme: light;
 }
 
 [data-theme='forest-light'] {
-	--surface-0: #ffffff;
-	--surface-1: #f5faf6;
-	--surface-2: #e8f4ea;
-	--surface-3: #d8eadc;
+	--surface-0: #eaf5ec;
+	--surface-1: #eaf5ec;
+	--surface-2: #e0efe3;
+	--surface-3: #d3e7d8;
 	--content-primary: #10241a;
-	--content-muted: #4c6b58;
+	--content-muted: #456352;
 	--content-subtle: #567260;
 	--accent: #1c8f4a;
 	--accent-hover: #167a3e;
 	--accent-soft: rgba(28, 143, 74, 0.1);
 	--accent-on: #ffffff;
-	--line: rgba(0, 0, 0, 0.09);
-	--line-strong: rgba(0, 0, 0, 0.16);
+	--line: rgba(0, 0, 0, 0.07);
+	--line-strong: rgba(0, 0, 0, 0.14);
+	--neu-light: #ffffff;
+	--neu-dark: #c6dbcb;
 	color-scheme: light;
 }
 
 [data-theme='amber-light'] {
-	--surface-0: #ffffff;
-	--surface-1: #fdfaf3;
-	--surface-2: #f8f1e0;
-	--surface-3: #f0e5cc;
+	--surface-0: #f8f2e6;
+	--surface-1: #f8f2e6;
+	--surface-2: #f2ebda;
+	--surface-3: #eae0c9;
 	--content-primary: #261d0e;
-	--content-muted: #6b5c3f;
+	--content-muted: #5f5238;
 	--content-subtle: #6f6247;
 	--accent: #b0740a;
 	--accent-hover: #96620a;
 	--accent-soft: rgba(176, 116, 10, 0.1);
 	--accent-on: #ffffff;
-	--line: rgba(0, 0, 0, 0.09);
-	--line-strong: rgba(0, 0, 0, 0.16);
+	--line: rgba(0, 0, 0, 0.07);
+	--line-strong: rgba(0, 0, 0, 0.14);
+	--neu-light: #ffffff;
+	--neu-dark: #ddd2b8;
 	color-scheme: light;
 }
 
@@ -200,47 +221,87 @@ body {
    instead of re-declaring borders and radii inline.
    ========================================================= */
 @layer components {
-	/* Cards: one radius, one border, one elevation. */
+	/*
+	 * Cards sit on the same colour as the page and are raised by their shadow
+	 * pair, which is the defining trait of neumorphism. No border is used —
+	 * a visible outline would break the effect.
+	 */
 	.card {
-		@apply bg-surface-1 border border-line rounded-xl;
+		@apply bg-surface-0 rounded-xl;
+		box-shadow: var(--neu-md);
 	}
 
 	.card-interactive {
-		@apply card transition-colors duration-150 ease-smooth hover:border-line-strong hover:bg-surface-2;
+		@apply card transition-shadow duration-200 ease-smooth;
+	}
+	.card-interactive:hover {
+		box-shadow: var(--neu-lg);
 	}
 
-	/* Buttons: three variants only. */
+	/* Buttons: raised by default, pressed inward on click. */
 	.btn {
 		@apply inline-flex items-center justify-center gap-2 font-medium text-sm
-		       rounded-lg px-4 py-2.5 transition-colors duration-150 ease-smooth
+		       rounded-lg px-4 py-2.5 transition-all duration-150 ease-smooth
 		       disabled:opacity-50 disabled:cursor-not-allowed select-none;
+		box-shadow: var(--neu-sm);
+	}
+	.btn:active:not(:disabled) {
+		box-shadow: var(--neu-inset);
 	}
 
 	.btn-primary {
-		@apply btn bg-accent text-accent-on hover:bg-accent-hover;
+		@apply btn bg-accent text-accent-on;
+		box-shadow: 3px 3px 8px var(--neu-dark), -3px -3px 8px var(--neu-light),
+			0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+	}
+	.btn-primary:hover:not(:disabled) {
+		@apply bg-accent-hover;
 	}
 
 	.btn-secondary {
-		@apply btn bg-surface-2 text-content border border-line hover:bg-surface-3 hover:border-line-strong;
+		@apply btn bg-surface-0 text-content;
+	}
+	.btn-secondary:hover:not(:disabled) {
+		@apply bg-surface-2;
 	}
 
 	.btn-ghost {
-		@apply btn bg-transparent text-content-muted hover:text-content hover:bg-surface-2;
+		@apply btn bg-transparent text-content-muted;
+		box-shadow: none;
+	}
+	.btn-ghost:hover:not(:disabled) {
+		@apply text-content bg-surface-2;
+		box-shadow: var(--neu-sm);
+	}
+	.btn-ghost:active:not(:disabled) {
+		box-shadow: var(--neu-inset);
 	}
 
-	/* Icon button: fixed square, never an emoji. */
+	/* Icon button: same raised/pressed behaviour at a square size. */
 	.btn-icon {
 		@apply inline-flex items-center justify-center w-9 h-9 rounded-lg
-		       text-content-muted transition-colors duration-150
-		       hover:text-content hover:bg-surface-2;
+		       text-content-muted transition-all duration-150 ease-smooth
+		       disabled:opacity-40 disabled:pointer-events-none;
+		box-shadow: var(--neu-sm);
+	}
+	.btn-icon:hover:not(:disabled) {
+		@apply text-content;
+		box-shadow: var(--neu-md);
+	}
+	.btn-icon:active:not(:disabled) {
+		box-shadow: var(--neu-inset);
 	}
 
-	/* Inputs */
+	/* Inputs are pressed into the surface. */
 	.input {
-		@apply w-full bg-surface-2 border border-line rounded-lg px-3.5 py-2.5
+		@apply w-full bg-surface-0 rounded-lg px-3.5 py-2.5
 		       text-sm text-content placeholder:text-content-subtle
-		       transition-colors duration-150
-		       focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent;
+		       transition-shadow duration-150
+		       focus:outline-none;
+		box-shadow: var(--neu-inset);
+	}
+	.input:focus {
+		box-shadow: var(--neu-inset), 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
 	}
 
 	.label {
@@ -256,27 +317,28 @@ body {
 		@apply w-1 h-5 rounded-full bg-accent;
 	}
 
-	/* Status pills — semantic colour only. */
+	/* Status pills — semantic colour only, inset so they read as labels. */
 	.badge {
 		@apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md
 		       text-[11px] font-semibold tracking-wide;
+		box-shadow: inset 1px 1px 2px var(--neu-dark), inset -1px -1px 2px var(--neu-light);
 	}
 	.badge-neutral {
-		@apply badge bg-surface-3 text-content-muted;
+		@apply badge bg-surface-0 text-content-muted;
 	}
 	.badge-positive {
 		@apply badge;
-		background-color: color-mix(in srgb, var(--positive) 16%, transparent);
+		background-color: color-mix(in srgb, var(--positive) 16%, var(--surface-0));
 		color: var(--positive);
 	}
 	.badge-warning {
 		@apply badge;
-		background-color: color-mix(in srgb, var(--warning) 16%, transparent);
+		background-color: color-mix(in srgb, var(--warning) 16%, var(--surface-0));
 		color: var(--warning);
 	}
 	.badge-critical {
 		@apply badge;
-		background-color: color-mix(in srgb, var(--critical) 16%, transparent);
+		background-color: color-mix(in srgb, var(--critical) 16%, var(--surface-0));
 		color: var(--critical);
 	}
 	.badge-accent {
@@ -381,6 +443,147 @@ body {
 }
 .admin-table tbody tr:hover td {
 	@apply bg-surface-2;
+}
+
+/* =========================================================
+   HERO PANEL
+   ---------------------------------------------------------
+   The hero sits over a blurred poster, so its text needs its own
+   backing. The panel is a raised neumorphic surface, and the
+   metadata + synopsis get inset panels, which keeps every line
+   readable no matter how light or busy the artwork is.
+   ========================================================= */
+.hero-panel {
+	background-color: var(--surface-0);
+	border-radius: 1rem;
+	padding: 1.25rem;
+	box-shadow: var(--neu-lg);
+}
+
+@media (min-width: 640px) {
+	.hero-panel {
+		padding: 1.5rem;
+	}
+}
+
+@media (min-width: 1024px) {
+	.hero-panel {
+		border-radius: 1.25rem;
+		padding: 1.75rem;
+	}
+}
+
+.hero-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem 0.75rem;
+	font-size: 0.875rem;
+	background-color: var(--surface-2);
+	border-radius: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	box-shadow: var(--neu-inset);
+}
+
+@media (min-width: 640px) {
+	.hero-meta {
+		justify-content: flex-start;
+		width: fit-content;
+	}
+}
+
+.hero-synopsis {
+	background-color: var(--surface-2);
+	border-radius: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	box-shadow: var(--neu-inset);
+	/*
+	 * `min-height` excludes padding, so a 2-line minimum plus 8px of padding
+	 * still resolved to 45.5px while a long synopsis needed 61.5px — the hero
+	 * then grew and shrank on every slide change. Folding the padding into the
+	 * minimum makes the reserved space match the real clamped height.
+	 */
+	min-height: calc(3lh + 1rem);
+}
+
+@media (min-width: 640px) {
+/*
+ * The title is clamped at two lines. Reserving exactly two lines keeps the
+ * hero a fixed height whether the title is short or long, so it no longer
+ * jumps while the slides rotate.
+ */
+.hero-title {
+	min-height: 2lh;
+}
+
+.hero-synopsis {
+		min-height: calc(2lh + 1rem);
+	}
+}
+
+/* Footer divider: a soft inset groove rather than a hard border. */
+.footer-rule {
+	height: 2px;
+	border-radius: 9999px;
+	background-color: var(--surface-0);
+	box-shadow: inset 0 1px 2px var(--neu-dark), inset 0 -1px 1px var(--neu-light);
+}
+
+/* Server picker panel shown under the player on mobile. */
+.server-bar {
+	background-color: var(--surface-0);
+	border-radius: 0.75rem;
+	padding: 0.625rem 0.75rem;
+	box-shadow: var(--neu-sm);
+}
+
+/* Episode tile: raised neumorphic button, pressed when it is the current one. */
+.ep-tile {
+	background-color: var(--surface-0);
+	box-shadow: var(--neu-sm);
+}
+.ep-tile:hover {
+	color: var(--content-primary);
+	box-shadow: var(--neu-md);
+}
+.ep-tile:active {
+	box-shadow: var(--neu-inset);
+}
+/* Watched episodes stay pressed in, which reads as "already seen". */
+.ep-tile[data-watched='true'] {
+	background-color: color-mix(in srgb, var(--accent) 12%, var(--surface-0));
+	box-shadow: var(--neu-inset);
+}
+
+/* Episode range selector in the player sidebar. */
+.ep-range {
+	background-color: var(--surface-0);
+	box-shadow: var(--neu-sm);
+}
+.ep-range:hover {
+	box-shadow: var(--neu-md);
+}
+
+/* Sidebar list row: flat by default, raised on hover, pressed on click. */
+.sidebar-row:hover,
+.sidebar-row:focus-visible {
+	background-color: var(--surface-0);
+	box-shadow: var(--neu-sm);
+}
+.sidebar-row:active {
+	box-shadow: var(--neu-inset);
+}
+
+/* Movie card: raised neumorphic tile that lifts further on hover. */
+.movie-card {
+	box-shadow: var(--neu-sm);
+}
+.movie-card:hover {
+	box-shadow: var(--neu-md);
+}
+.movie-card:active {
+	box-shadow: var(--neu-inset);
 }
 
 /* =========================================================

@@ -239,11 +239,10 @@
 					{#each chunks[chunk] ?? [] as e (e.ep)}
 						<a
 							href={`/watch/${item.id}/${e.ep}`}
-							class="flex items-center justify-center py-2.5 rounded-lg text-sm font-medium
-							       tabular-nums border transition-colors duration-150
-							       {watched.has(e.ep)
-								? 'bg-accent-soft border-accent text-accent'
-								: 'bg-surface-1 border-line text-content-muted hover:text-content hover:bg-surface-2'}"
+							class="ep-tile flex items-center justify-center py-2.5 rounded-lg text-sm
+							       font-medium tabular-nums transition-all duration-150 ease-smooth
+							       {watched.has(e.ep) ? 'text-accent' : 'text-content-muted'}"
+							data-watched={watched.has(e.ep)}
 						>
 							{e.ep}
 						</a>

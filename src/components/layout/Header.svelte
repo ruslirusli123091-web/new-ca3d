@@ -422,7 +422,7 @@
 				/>
 			</div>
 			{#if results.length}
-				<div class="mt-2 py-1 rounded-xl bg-surface-2 border border-line overflow-hidden">
+				<div class="mt-2 py-1 rounded-xl bg-surface-2 overflow-hidden">
 					{#each results as r (r.id)}
 						<button
 							type="button"

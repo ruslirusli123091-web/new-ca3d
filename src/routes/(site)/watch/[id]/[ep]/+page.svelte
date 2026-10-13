@@ -234,8 +234,45 @@
 				{/if}
 			</div>
 
+			<!--
+			  Server picker.
+
+			  On mobile it gets its own full-width panel directly under the player
+			  and above the title, so it is easy to reach with a thumb and does not
+			  crowd the title row. From `sm` up it moves back into the title row,
+			  which keeps the desktop layout unchanged.
+			-->
+			{#if streams.length > 0}
+				<div class="server-bar mt-3 sm:hidden">
+					<div class="flex items-center gap-2.5">
+						<span class="text-xs font-medium text-content-muted flex-shrink-0">Server</span>
+						{#if streams.length > 1}
+							<label class="relative flex-1 min-w-0">
+								<span class="sr-only">Pilih server</span>
+								<select
+									value={activeUrl}
+									onchange={(e) => (activeUrl = e.currentTarget.value)}
+									class="input !w-full !py-2 !pr-8 !pl-3 !text-xs cursor-pointer appearance-none"
+								>
+									{#each streams as s, i (i)}
+										<option value={s.url}>{s.name}</option>
+									{/each}
+								</select>
+								<Icon
+									name="chevron-down"
+									class="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2
+									       text-content-subtle pointer-events-none"
+								/>
+							</label>
+						{:else}
+							<span class="badge-neutral">{streams[0].name}</span>
+						{/if}
+					</div>
+				</div>
+			{/if}
+
 			<!-- Title bar and controls -->
-			<div class="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+			<div class="mt-3 sm:mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div class="min-w-0">
 					<h1 class="font-display text-base sm:text-lg font-semibold text-content truncate">
 						{item.title}
@@ -261,10 +298,9 @@
 						<Icon name="rotate-screen" class="w-4 h-4" />
 					</button>
 
+					<!-- Desktop keeps the picker inline with the controls -->
 					{#if streams.length > 1}
-						<!-- Server picker as a dropdown: showing every mirror as its own
-						     button pushed the controls onto a second row. -->
-						<label class="relative flex-shrink-0">
+						<label class="relative flex-shrink-0 hidden sm:block">
 							<span class="sr-only">Pilih server</span>
 							<select
 								value={activeUrl}
@@ -282,7 +318,7 @@
 							/>
 						</label>
 					{:else if streams.length === 1}
-						<span class="badge-neutral flex-shrink-0">{streams[0].name}</span>
+						<span class="badge-neutral flex-shrink-0 hidden sm:inline-flex">{streams[0].name}</span>
 					{/if}
 
 					{#if data.prevEp}
@@ -337,11 +373,9 @@
 							<button
 								type="button"
 								onclick={() => (chunk = i)}
-								class="px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap tabular-nums
-								       border transition-colors duration-150
-								       {chunk === i
-									? 'bg-accent text-accent-on border-accent'
-									: 'bg-surface-2 text-content-muted border-line hover:text-content'}"
+								class="ep-range px-2.5 py-1.5 rounded-md text-[11px] font-medium whitespace-nowrap
+								       tabular-nums transition-all duration-150 ease-smooth
+								       {chunk === i ? 'bg-accent text-accent-on' : 'text-content-muted'}"
 							>
 								{c[0].ep}–{c[c.length - 1].ep}
 							</button>
@@ -353,13 +387,14 @@
 					{#each chunks[chunk] ?? [] as e (e.ep)}
 						<a
 							href={`/watch/${item.id}/${e.ep}`}
-							class="flex items-center justify-center py-2 rounded-md text-xs font-medium
-							       tabular-nums transition-colors duration-150
+							class="ep-tile flex items-center justify-center py-2 rounded-md text-xs font-medium
+							       tabular-nums transition-all duration-150 ease-smooth
 							       {e.ep === ep
 								? 'bg-accent text-accent-on'
 								: watched.has(e.ep)
-									? 'bg-accent-soft text-accent'
-									: 'bg-surface-2 text-content-muted hover:text-content hover:bg-surface-3'}"
+									? 'text-accent'
+									: 'text-content-muted'}"
+							data-watched={watched.has(e.ep) && e.ep !== ep}
 							aria-current={e.ep === ep ? 'page' : undefined}
 						>
 							{e.ep}

@@ -54,7 +54,7 @@
 
 			<!-- Weekday tabs: a scrollable segmented row instead of the previous
 			     4-column grid that wrapped into two ragged rows on mobile. -->
-			<div class="flex gap-1 p-1 rounded-xl bg-surface-1 border border-line overflow-x-auto scrollbar-hide mb-6">
+			<div class="flex gap-1 p-1 rounded-xl bg-surface-0 overflow-x-auto scrollbar-hide mb-6">
 				{#each DAYS as day (day)}
 					<button
 						type="button"

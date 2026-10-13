@@ -40,9 +40,8 @@
 	<button
 		type="button"
 		onclick={open}
-		class="flex flex-col h-full w-full text-left rounded-lg sm:rounded-xl overflow-hidden
-		       border border-line bg-surface-1 transition-colors duration-150 ease-smooth
-		       hover:border-line-strong focus-visible:border-accent"
+		class="movie-card flex flex-col h-full w-full text-left rounded-xl overflow-hidden
+		       bg-surface-0 transition-all duration-200 ease-smooth"
 		aria-label={`Lihat ${item.title}`}
 	>
 		<div class="relative aspect-[2/3] overflow-hidden bg-surface-2">

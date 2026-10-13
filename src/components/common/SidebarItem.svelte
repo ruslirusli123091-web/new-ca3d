@@ -18,8 +18,7 @@
 -->
 <a
 	href={`/synopsis/${item.id}`}
-	class="group flex items-center gap-3 rounded-lg p-2 transition-colors duration-150
-	       hover:bg-surface-2 focus-visible:bg-surface-2"
+	class="sidebar-row group flex items-center gap-3 rounded-lg p-2 transition-all duration-150 ease-smooth"
 >
 	<span
 		class="w-5 flex-shrink-0 text-center text-xs font-semibold tabular-nums"

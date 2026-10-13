@@ -603,7 +603,7 @@
 						<div class="space-y-5">
 							<section class="card p-4">
 								<h2 class="label">Poster</h2>
-								<div class="aspect-[2/3] rounded-lg overflow-hidden bg-surface-2 border border-line mb-3">
+								<div class="aspect-[2/3] rounded-lg overflow-hidden bg-surface-2 mb-3">
 									{#if draftImage}
 										<img
 											src={getOptimizedImageUrl(draftImage, 300)}
@@ -1121,7 +1121,7 @@
 					</section>
 				</div>
 
-				<div class="mt-4 max-w-3xl flex items-start gap-2.5 rounded-lg border border-line bg-surface-1 p-3.5">
+				<div class="mt-4 max-w-3xl flex items-start gap-2.5 rounded-lg bg-surface-0 p-3.5">
 					<Icon name="info" class="w-4 h-4 text-content-subtle flex-shrink-0 mt-px" />
 					<p class="text-xs leading-relaxed text-content-muted">
 						Cadangan hanya berisi katalog dan episode. Tidak ada komentar, akun, atau statistik karena

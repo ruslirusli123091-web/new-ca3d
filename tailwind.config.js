@@ -14,10 +14,13 @@ export default {
 			 */
 			colors: {
 				surface: {
-					DEFAULT: 'var(--surface-0)',
+					/* `0` is the page colour; neumorphic elements share it and rely
+					   on their shadow pair rather than a different background. */
+					0: 'var(--surface-0)',
 					1: 'var(--surface-1)',
 					2: 'var(--surface-2)',
-					3: 'var(--surface-3)'
+					3: 'var(--surface-3)',
+					DEFAULT: 'var(--surface-0)'
 				},
 				content: {
 					DEFAULT: 'var(--content-primary)',

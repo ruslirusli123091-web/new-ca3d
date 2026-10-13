@@ -78,7 +78,7 @@
 			</header>
 
 			<!-- Tabs -->
-			<div class="flex items-center gap-1 p-1 rounded-xl bg-surface-1 border border-line mb-6">
+			<div class="flex items-center gap-1 p-1 rounded-xl bg-surface-0 mb-6">
 				<button
 					type="button"
 					onclick={() => (tab = 'bookmarks')}

@@ -108,14 +108,18 @@
 	<!--
 	  Hero.
 
-	  On mobile it stays edge-to-edge. From `lg` up it is constrained to the same
-	  7xl container as the header and the rest of the page, so it no longer bleeds
-	  past the content column on desktop. The poster keeps its real 2:3 ratio and
-	  the text sits on a solid surface, so contrast never depends on the artwork.
+	  Layout: constrained to the same 7xl container as the header and the grid,
+	  so the left and right edges line up on desktop. On mobile it stays inside
+	  the same container too, which keeps the spacing consistent.
+
+	  Readability: the metadata row (episode, views, day) and the synopsis were
+	  plain muted text over a blurred poster, so they were hard to read whenever
+	  the artwork was light. They now sit on a translucent surface panel, which
+	  guarantees contrast regardless of the image behind them.
 	-->
 	{#if current}
-		<section class="relative overflow-hidden border-b border-line lg:border-b-0" aria-label="Rekomendasi utama">
-			<!-- Backdrop: blurred + darkened, never used to judge the artwork -->
+		<section class="relative overflow-hidden" aria-label="Rekomendasi utama">
+			<!-- Backdrop: blurred + darkened copy of the current poster -->
 			{#each featured as item, i (item.id)}
 				<div
 					class="absolute inset-0 transition-opacity duration-700 ease-smooth
@@ -128,18 +132,15 @@
 						class="w-full h-full object-cover blur-3xl scale-125"
 						loading={i === 0 ? 'eager' : 'lazy'}
 					/>
-					<div class="absolute inset-0 bg-surface-0/80"></div>
+					<div class="absolute inset-0 bg-surface-0/85"></div>
 				</div>
 			{/each}
 
-			<div class="relative max-w-7xl mx-auto px-4 py-6 md:py-10">
-				<div
-					class="lg:rounded-2xl lg:border lg:border-line lg:bg-surface-1/60 lg:backdrop-blur-sm
-					       lg:p-8 flex flex-col sm:flex-row gap-5 md:gap-8 items-center sm:items-start"
-				>
+			<div class="relative max-w-7xl mx-auto px-4 py-6 md:py-8">
+				<div class="hero-panel flex flex-col sm:flex-row gap-5 md:gap-7 items-center sm:items-start">
 					<!-- Poster at true 2:3 aspect — never stretched -->
-					<div class="w-36 sm:w-44 md:w-52 flex-shrink-0">
-						<div class="aspect-[2/3] rounded-xl overflow-hidden border border-line shadow-xl bg-surface-2">
+					<div class="w-36 sm:w-44 md:w-48 flex-shrink-0">
+						<div class="aspect-[2/3] rounded-xl overflow-hidden bg-surface-2 shadow-xl">
 							<img
 								src={getOptimizedImageUrl(current.image, 400)}
 								alt={current.title}
@@ -152,31 +153,31 @@
 						</div>
 					</div>
 
-					<!-- Text: solid surface so contrast never depends on the artwork -->
 					<div class="flex-1 min-w-0 text-center sm:text-left">
 						<span class="badge-accent mb-3">Baru ditambahkan</span>
 
 						<h1
-							class="font-display text-xl sm:text-2xl md:text-3xl font-bold leading-tight text-content line-clamp-2"
+							class="font-display text-xl sm:text-2xl md:text-3xl font-bold leading-tight
+							       text-content line-clamp-2 hero-title"
 						>
 							{current.title}
 						</h1>
 
-						<div
-							class="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1.5 text-sm"
-						>
+						<!-- Metadata on its own inset panel so it never sits directly
+						     on the artwork. -->
+						<div class="hero-meta mt-3.5">
 							{#if current.rating}
 								<span
-									class="inline-flex items-center gap-1 font-medium tabular-nums"
+									class="inline-flex items-center gap-1 font-semibold tabular-nums"
 									style="color: var(--warning)"
 								>
-									<Icon name="star" class="w-4 h-4" />
+									<Icon name="star" class="w-3.5 h-3.5" />
 									{current.rating.toFixed(1)}
 									<span class="text-content-subtle font-normal">/ 10</span>
 								</span>
 							{/if}
 							{#if getLatestEp(current.episodes)}
-								<span class="text-content-muted tabular-nums">
+								<span class="text-content tabular-nums font-medium">
 									Episode {getLatestEp(current.episodes)}
 								</span>
 							{/if}
@@ -189,7 +190,8 @@
 						</div>
 
 						<p
-							class="mt-3 max-w-xl text-sm leading-relaxed text-content-muted line-clamp-3 sm:line-clamp-2"
+							class="hero-synopsis mt-3 max-w-xl text-sm leading-relaxed text-content-muted
+							       line-clamp-3 sm:line-clamp-2"
 						>
 							{current.synopsis}
 						</p>
@@ -207,12 +209,12 @@
 						</div>
 
 						<!-- Slide indicators -->
-						<div class="mt-6 flex gap-1.5 justify-center sm:justify-start">
+						<div class="mt-5 flex gap-1.5 justify-center sm:justify-start">
 							{#each featured as _, i (i)}
 								<button
 									type="button"
 									onclick={() => (bannerIndex = i)}
-									class="h-1 rounded-full transition-all duration-300 ease-smooth
+									class="h-1.5 rounded-full transition-all duration-300 ease-smooth
 									       {i === bannerIndex ? 'w-8 bg-accent' : 'w-4 bg-surface-3 hover:bg-line-strong'}"
 									aria-label={`Slide ${i + 1}`}
 									aria-current={i === bannerIndex}
