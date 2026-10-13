@@ -33,10 +33,10 @@ endpoint tulis dijaga `requireAdmin()` dan mengembalikan `401` tanpa sesi valid:
 
 | Endpoint | Method | Proteksi |
 |---|---|---|
-| `/api/donghua` | `PUT` (simpan/edit) | **Admin only** |
-| `/api/donghua` | `DELETE` (hapus) | **Admin only** |
+| `/geni/donghua` | `PUT` (simpan/edit) | **Admin only** |
+| `/geni/donghua` | `DELETE` (hapus) | **Admin only** |
 | `/api/notify` | `POST` | **Admin only** |
-| `/api/donghua` | `GET` (baca) | Publik, rate limited |
+| `/geni/donghua` | `GET` (baca) | Publik, rate limited |
 | `/api/view` | `POST` (hitung view) | Publik, rate limited |
 
 Terverifikasi: `PUT` dan `DELETE` tanpa login → `401`, data tetap utuh.

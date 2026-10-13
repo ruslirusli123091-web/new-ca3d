@@ -7,7 +7,7 @@ import { validateDonghua } from '$lib/server/validate';
 import { isSearchCrawler } from '$lib/server/bot';
 
 /**
- * GET /api/donghua — public catalogue (also optionally ?id=...).
+ * GET /geni/donghua — public catalogue (also optionally ?id=...).
  *
  * Normally the HTML pages render this data server-side, so browsers rarely need
  * this endpoint. It exists for the admin panel and for programmatic access, and
@@ -62,7 +62,7 @@ export const GET: RequestHandler = async (event) => {
 	}
 };
 
-/** PUT /api/donghua — replace the full catalogue (admin only). */
+/** PUT /geni/donghua — replace the full catalogue (admin only). */
 export const PUT: RequestHandler = async (event) => {
 	const blocked = await guard(event, { bucket: 'write', sameOrigin: true });
 	if (blocked) return blocked;
@@ -113,7 +113,7 @@ export const PUT: RequestHandler = async (event) => {
 	return json({ status: 'Saved', count: items.length });
 };
 
-/** DELETE /api/donghua — remove one item (admin only). */
+/** DELETE /geni/donghua — remove one item (admin only). */
 export const DELETE: RequestHandler = async (event) => {
 	const blocked = await guard(event, { bucket: 'write', sameOrigin: true });
 	if (blocked) return blocked;

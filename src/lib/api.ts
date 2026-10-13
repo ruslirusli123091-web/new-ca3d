@@ -31,7 +31,7 @@ async function parse<T>(res: Response): Promise<T> {
 export const api = {
 	fetchDonghua: async (): Promise<Donghua[]> => {
 		try {
-			const res = await fetch('/api/donghua', { credentials: 'same-origin' });
+			const res = await fetch('/geni/donghua', { credentials: 'same-origin' });
 			const json = (await res.json()) as { donghua?: Donghua[] };
 			return json.donghua || [];
 		} catch (error) {
@@ -42,7 +42,7 @@ export const api = {
 
 	fetchOneDonghua: async (id: string): Promise<Donghua | null> => {
 		try {
-			const res = await fetch(`/api/donghua?id=${encodeURIComponent(id)}`, {
+			const res = await fetch(`/geni/donghua?id=${encodeURIComponent(id)}`, {
 				credentials: 'same-origin'
 			});
 			if (!res.ok) return null;
@@ -55,7 +55,7 @@ export const api = {
 
 	// ---- Admin actions (session cookie authorises these; no password in body) ----
 	saveDonghua: async (data: Donghua[]) => {
-		return fetch('/api/donghua', {
+		return fetch('/geni/donghua', {
 			method: 'PUT',
 			headers: jsonHeaders(),
 			credentials: 'same-origin',
@@ -64,7 +64,7 @@ export const api = {
 	},
 
 	deleteDonghua: async (id: string) => {
-		return fetch('/api/donghua', {
+		return fetch('/geni/donghua', {
 			method: 'DELETE',
 			headers: jsonHeaders(),
 			credentials: 'same-origin',
