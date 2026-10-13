@@ -17,6 +17,13 @@ import { isSearchCrawler } from '$lib/server/bot';
 export const GET: RequestHandler = async (event) => {
 	const { url, request } = event;
 
+	// This is an internal JSON transport for the hydrated web app, not a
+	// browsable public document. A direct address-bar visit, normal link, or
+	// generic scraper therefore gets the same 404 as a missing resource. The
+	// public pages themselves are SSR and do not need this endpoint for their
+	// initial HTML.
+	if (request.headers.get('X-CA3D-App') !== 'web') return notFound();
+
 	// Search crawlers may read the site HTML but not bulk-scrape this API.
 	if (isSearchCrawler(request)) return error('Forbidden', 403);
 

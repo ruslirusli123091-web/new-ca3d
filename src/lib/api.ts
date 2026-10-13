@@ -11,8 +11,11 @@ import type { Donghua } from '$lib/types';
 const jsonHeaders = (extra: Record<string, string> = {}) => ({
 	'Content-Type': 'application/json',
 	'X-Requested-With': 'ca3d-fetch',
+	'X-CA3D-App': 'web',
 	...extra
 });
+
+const webReadHeaders = { 'X-CA3D-App': 'web' };
 
 export interface ApiError extends Error {
 	status?: number;
@@ -31,7 +34,10 @@ async function parse<T>(res: Response): Promise<T> {
 export const api = {
 	fetchDonghua: async (): Promise<Donghua[]> => {
 		try {
-			const res = await fetch('/geni/donghua', { credentials: 'same-origin' });
+			const res = await fetch('/geni/donghua', {
+				credentials: 'same-origin',
+				headers: webReadHeaders
+			});
 			const json = (await res.json()) as { donghua?: Donghua[] };
 			return json.donghua || [];
 		} catch (error) {
@@ -43,7 +49,8 @@ export const api = {
 	fetchOneDonghua: async (id: string): Promise<Donghua | null> => {
 		try {
 			const res = await fetch(`/geni/donghua?id=${encodeURIComponent(id)}`, {
-				credentials: 'same-origin'
+				credentials: 'same-origin',
+				headers: webReadHeaders
 			});
 			if (!res.ok) return null;
 			const json = (await res.json()) as { donghua?: Donghua };
