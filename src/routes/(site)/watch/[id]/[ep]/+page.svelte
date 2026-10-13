@@ -193,9 +193,9 @@
 			  `allow`) because the two are separate: the attribute controls the
 			  fullscreen API, `allow` controls the permission policy.
 			-->
+			<div class="player-frame {landscape ? 'forced-landscape' : ''}">
 			<div
-				class="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-line
-				       {landscape ? 'forced-landscape' : ''}"
+				class="relative w-full aspect-video rounded-lg overflow-hidden bg-black"
 			>
 				{#if embeddable}
 					{#key embeddable}
@@ -232,6 +232,7 @@
 						<Icon name="close" class="w-4 h-4 mx-auto" />
 					</button>
 				{/if}
+			</div>
 			</div>
 
 			<!--
@@ -341,18 +342,22 @@
 			</div>
 
 			<!-- Short description, kept for context and crawlers. -->
-			<section class="mt-6 card p-4">
-				<h2 class="text-xs font-semibold text-content-subtle uppercase tracking-wider mb-2">
-					Tentang episode ini
-				</h2>
-				<p class="text-sm leading-relaxed text-content-muted">{data.meta.description}</p>
+			<section class="panel mt-6">
+				<div class="panel-head">
+					<h2 class="text-xs font-semibold text-content-subtle uppercase tracking-wider">
+						Tentang episode ini
+					</h2>
+				</div>
+				<div class="panel-body">
+					<p class="text-sm leading-relaxed text-content-muted">{data.meta.description}</p>
+				</div>
 			</section>
 		</div>
 
 		<aside class="w-full lg:w-72 flex-shrink-0 flex flex-col gap-5">
 			<!-- Episode list -->
-			<section class="card overflow-hidden">
-				<div class="flex items-center justify-between px-4 py-3 border-b border-line">
+			<section class="panel">
+				<div class="panel-head">
 					<h2 class="text-sm font-semibold text-content">Episode</h2>
 					<button
 						type="button"
@@ -373,9 +378,9 @@
 							<button
 								type="button"
 								onclick={() => (chunk = i)}
-								class="ep-range px-2.5 py-1.5 rounded-md text-[11px] font-medium whitespace-nowrap
-								       tabular-nums transition-all duration-150 ease-smooth
-								       {chunk === i ? 'bg-accent text-accent-on' : 'text-content-muted'}"
+							class="ep-range px-2.5 py-1.5 rounded-md text-[11px] font-medium whitespace-nowrap
+							       tabular-nums transition-all duration-150 ease-smooth"
+							data-active={chunk === i}
 							>
 								{c[0].ep}–{c[c.length - 1].ep}
 							</button>
@@ -388,13 +393,9 @@
 						<a
 							href={`/watch/${item.id}/${e.ep}`}
 							class="ep-tile flex items-center justify-center py-2 rounded-md text-xs font-medium
-							       tabular-nums transition-all duration-150 ease-smooth
-							       {e.ep === ep
-								? 'bg-accent text-accent-on'
-								: watched.has(e.ep)
-									? 'text-accent'
-									: 'text-content-muted'}"
+							       tabular-nums transition-all duration-150 ease-smooth"
 							data-watched={watched.has(e.ep) && e.ep !== ep}
+							data-active={e.ep === ep}
 							aria-current={e.ep === ep ? 'page' : undefined}
 						>
 							{e.ep}
@@ -403,28 +404,36 @@
 				</div>
 			</section>
 
-			<section class="card p-4">
-				<h2 class="flex items-center gap-2 text-sm font-semibold text-content mb-3">
-					<Icon name="film" class="w-4 h-4 text-accent" />
-					Mungkin kamu suka
-				</h2>
-				<div class="flex flex-col gap-0.5">
-					{#each recommended as it, i (it.id)}
-						<SidebarItem item={it} rank={i + 1} />
-					{/each}
+			<section class="panel">
+				<div class="panel-head">
+					<h2 class="flex items-center gap-2 text-sm font-semibold text-content">
+						<Icon name="film" class="w-4 h-4 text-accent" />
+						Mungkin kamu suka
+					</h2>
 				</div>
-				<SidebarButtons />
+				<div class="panel-body">
+					<div class="flex flex-col gap-0.5">
+						{#each recommended as it, i (it.id)}
+							<SidebarItem item={it} rank={i + 1} />
+						{/each}
+					</div>
+					<SidebarButtons />
+				</div>
 			</section>
 
-			<section class="card p-4">
-				<h2 class="flex items-center gap-2 text-sm font-semibold text-content mb-3">
-					<Icon name="trending-up" class="w-4 h-4 text-accent" />
-					Paling banyak ditonton
-				</h2>
-				<div class="flex flex-col gap-0.5">
-					{#each popular as it, i (it.id)}
-						<SidebarItem item={it} rank={i + 1} />
-					{/each}
+			<section class="panel">
+				<div class="panel-head">
+					<h2 class="flex items-center gap-2 text-sm font-semibold text-content">
+						<Icon name="trending-up" class="w-4 h-4 text-accent" />
+						Paling banyak ditonton
+					</h2>
+				</div>
+				<div class="panel-body">
+					<div class="flex flex-col gap-0.5">
+						{#each popular as it, i (it.id)}
+							<SidebarItem item={it} rank={i + 1} />
+						{/each}
+					</div>
 				</div>
 			</section>
 		</aside>

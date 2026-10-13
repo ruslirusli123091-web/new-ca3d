@@ -108,39 +108,47 @@
 	<!--
 	  Hero.
 
-	  Layout: constrained to the same 7xl container as the header and the grid,
-	  so the left and right edges line up on desktop. On mobile it stays inside
-	  the same container too, which keeps the spacing consistent.
+	  Desktop (lg+): the whole visual — blurred backdrop included — is wrapped in
+	  a container that matches the grid below, so the banner's left and right
+	  edges line up with "Rilis terbaru" and "Paling banyak ditonton". The blur is
+	  clipped by that container instead of bleeding to the screen edges, so the
+	  area outside it is plain page background.
 
-	  Readability: the metadata row (episode, views, day) and the synopsis were
-	  plain muted text over a blurred poster, so they were hard to read whenever
-	  the artwork was light. They now sit on a translucent surface panel, which
-	  guarantees contrast regardless of the image behind them.
+	  Mobile: the wrapper has no max-width and no rounding, so the backdrop stays
+	  edge-to-edge exactly as before.
 	-->
 	{#if current}
-		<section class="relative overflow-hidden" aria-label="Rekomendasi utama">
-			<!-- Backdrop: blurred + darkened copy of the current poster -->
-			{#each featured as item, i (item.id)}
-				<div
-					class="absolute inset-0 transition-opacity duration-700 ease-smooth
-					       {i === bannerIndex ? 'opacity-100' : 'opacity-0'}"
-					aria-hidden="true"
-				>
-					<img
-						src={getOptimizedImageUrl(item.image, 400)}
-						alt=""
-						class="w-full h-full object-cover blur-3xl scale-125"
-						loading={i === 0 ? 'eager' : 'lazy'}
-					/>
-					<div class="absolute inset-0 bg-surface-0/85"></div>
-				</div>
-			{/each}
+		<section class="relative" aria-label="Rekomendasi utama">
+			<div class="lg:max-w-7xl lg:mx-auto lg:px-4 lg:py-6">
+				<!--
+				  .hero-slide has a FIXED height (set in app.css per breakpoint).
+				  Everything inside is positioned against that fixed box, so the
+				  slider cannot change height when the slide changes.
+				-->
+				<div class="hero-slide lg:rounded-2xl lg:shadow-neu-md">
+					<!-- Backdrop: blurred + darkened copy of the current poster -->
+					{#each featured as item, i (item.id)}
+						<div
+							class="absolute inset-0 transition-opacity duration-700 ease-smooth
+							       {i === bannerIndex ? 'opacity-100' : 'opacity-0'}"
+							aria-hidden="true"
+						>
+							<img
+								src={getOptimizedImageUrl(item.image, 400)}
+								alt=""
+								class="w-full h-full object-cover blur-3xl scale-125"
+								loading={i === 0 ? 'eager' : 'lazy'}
+							/>
+							<div class="absolute inset-0 bg-surface-0/85"></div>
+						</div>
+					{/each}
 
-			<div class="relative max-w-7xl mx-auto px-4 py-6 md:py-8">
-				<div class="hero-panel flex flex-col sm:flex-row gap-5 md:gap-7 items-center sm:items-start">
-					<!-- Poster at true 2:3 aspect — never stretched -->
-					<div class="w-36 sm:w-44 md:w-48 flex-shrink-0">
-						<div class="aspect-[2/3] rounded-xl overflow-hidden bg-surface-2 shadow-xl">
+					<div class="relative h-full px-4 py-5 sm:py-6 lg:px-6">
+						<div class="hero-panel">
+					<!-- Poster column: fixed width from CSS, so the panel height is
+					     never driven by the image aspect ratio. -->
+					<div class="hero-poster">
+						<div class="aspect-[2/3] rounded-xl overflow-hidden bg-surface-2 shadow-xl h-full">
 							<img
 								src={getOptimizedImageUrl(current.image, 400)}
 								alt={current.title}
@@ -153,8 +161,10 @@
 						</div>
 					</div>
 
-					<div class="flex-1 min-w-0 text-center sm:text-left">
-						<span class="badge-accent mb-3">Baru ditambahkan</span>
+					<!-- Text column: min-height is set in CSS so the panel height is
+					     identical for every slide. -->
+					<div class="hero-text text-center sm:text-left">
+						<span class="badge-accent mb-3 self-center sm:self-start">Baru ditambahkan</span>
 
 						<h1
 							class="font-display text-xl sm:text-2xl md:text-3xl font-bold leading-tight
@@ -189,14 +199,7 @@
 							{/if}
 						</div>
 
-						<p
-							class="hero-synopsis mt-3 max-w-xl text-sm leading-relaxed text-content-muted
-							       line-clamp-3 sm:line-clamp-2"
-						>
-							{current.synopsis}
-						</p>
-
-						<div class="mt-5 flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+						<div class="mt-4 flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
 							<button
 								type="button"
 								onclick={() => goto(`/watch/${current.id}/${getLatestEp(current.episodes)}`)}
@@ -207,23 +210,28 @@
 							</button>
 							<a href={`/synopsis/${current.id}`} class="btn-secondary">Detail</a>
 						</div>
+					</div>
+					</div>
 
-						<!-- Slide indicators -->
-						<div class="mt-5 flex gap-1.5 justify-center sm:justify-start">
-							{#each featured as _, i (i)}
-								<button
-									type="button"
-									onclick={() => (bannerIndex = i)}
-									class="h-1.5 rounded-full transition-all duration-300 ease-smooth
-									       {i === bannerIndex ? 'w-8 bg-accent' : 'w-4 bg-surface-3 hover:bg-line-strong'}"
-									aria-label={`Slide ${i + 1}`}
-									aria-current={i === bannerIndex}
-								></button>
-							{/each}
-						</div>
+					<!--
+					  Slide indicators are pinned to the bottom edge of the fixed-height
+					  slide, so they never move when the slide changes.
+					-->
+					<div class="absolute inset-x-0 bottom-2 flex justify-center gap-1.5 pointer-events-none">
+						{#each featured as _, i (i)}
+							<button
+								type="button"
+								onclick={() => (bannerIndex = i)}
+								class="pointer-events-auto h-1.5 rounded-full transition-all duration-300 ease-smooth
+								       {i === bannerIndex ? 'w-8 bg-accent' : 'w-4 bg-line-strong hover:bg-content-subtle'}"
+								aria-label={`Slide ${i + 1}`}
+								aria-current={i === bannerIndex}
+							></button>
+						{/each}
 					</div>
 				</div>
 			</div>
+		</div>
 		</section>
 	{/if}
 

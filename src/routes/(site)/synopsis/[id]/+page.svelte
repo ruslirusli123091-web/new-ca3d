@@ -196,13 +196,17 @@
 
 	<div class="mt-10 flex flex-col lg:flex-row gap-10">
 		<div class="flex-1 min-w-0 space-y-8">
-			<section>
-				<h2 class="section-title mb-4">Sinopsis</h2>
-				<ExpandableText text={item.synopsis} />
+			<section class="panel">
+				<div class="panel-head">
+					<h2 class="section-title">Sinopsis</h2>
+				</div>
+				<div class="panel-body">
+					<ExpandableText text={item.synopsis} />
+				</div>
 			</section>
 
-			<section>
-				<div class="flex items-center justify-between mb-4">
+			<section class="panel">
+				<div class="panel-head">
 					<h2 class="section-title">Episode</h2>
 					<button
 						type="button"
@@ -217,17 +221,16 @@
 					</button>
 				</div>
 
+				<div class="panel-body">
 				{#if chunks.length > 1}
 					<div class="flex gap-1.5 mb-4 overflow-x-auto scrollbar-hide pb-1">
 						{#each chunks as c, i (i)}
 							<button
 								type="button"
 								onclick={() => (chunk = i)}
-								class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap tabular-nums
-								       transition-colors duration-150 border
-								       {chunk === i
-									? 'bg-accent text-accent-on border-accent'
-									: 'bg-surface-2 text-content-muted border-line hover:text-content'}"
+								class="ep-range px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap
+								       tabular-nums transition-all duration-150 ease-smooth"
+								data-active={chunk === i}
 							>
 								{c[0].ep}–{c[c.length - 1].ep}
 							</button>
@@ -240,13 +243,13 @@
 						<a
 							href={`/watch/${item.id}/${e.ep}`}
 							class="ep-tile flex items-center justify-center py-2.5 rounded-lg text-sm
-							       font-medium tabular-nums transition-all duration-150 ease-smooth
-							       {watched.has(e.ep) ? 'text-accent' : 'text-content-muted'}"
+							       font-medium tabular-nums transition-all duration-150 ease-smooth"
 							data-watched={watched.has(e.ep)}
 						>
 							{e.ep}
 						</a>
 					{/each}
+				</div>
 				</div>
 			</section>
 		</div>
