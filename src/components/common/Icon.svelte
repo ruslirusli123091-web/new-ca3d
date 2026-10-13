@@ -1,12 +1,11 @@
 <script lang="ts">
 	/**
-	 * Single icon set. Replaces the emoji that were being used as UI icons,
-	 * which is the main reason the interface read as machine-generated:
-	 * emoji render differently on every OS, ignore the current text colour,
-	 * and cannot be sized consistently.
+	 * Single icon set. Replaces the emoji that were being used as UI icons.
 	 *
-	 * All icons are 24x24, stroked with currentColor, so they inherit colour
-	 * and size from the surrounding element.
+	 * Icons are stroked with currentColor. A few glyphs (play, star) are solid
+	 * shapes rather than outlines, so they are listed in `FILLED` and rendered
+	 * with fill instead of stroke — otherwise they render as nothing, which is
+	 * why the play button appeared as an empty circle.
 	 */
 	interface Props {
 		name: keyof typeof paths;
@@ -15,6 +14,10 @@
 	}
 
 	let { name, class: className = 'w-5 h-5', stroke = 1.75 }: Props = $props();
+
+	/** Solid glyphs that must be filled, not stroked. */
+	const FILLED = new Set(['play', 'star', 'flame']);
+	const filled = $derived(FILLED.has(name));
 
 	const paths = {
 		calendar: 'M8 7V3m8 4V3M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2zM3 11h18',
@@ -77,8 +80,8 @@
 
 <svg
 	class={className}
-	fill="none"
-	stroke="currentColor"
+	fill={filled ? 'currentColor' : 'none'}
+	stroke={filled ? 'none' : 'currentColor'}
 	viewBox="0 0 24 24"
 	stroke-width={stroke}
 	stroke-linecap="round"

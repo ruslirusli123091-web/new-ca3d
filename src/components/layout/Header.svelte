@@ -14,8 +14,15 @@
 
 	let { data, onSearch = () => {} }: Props = $props();
 
+	/**
+	 * Web Push public key (VAPID).
+	 *
+	 * This is a public key by design — it identifies the server to the push
+	 * service. The matching private key stays on the server as a secret.
+	 * Regenerate both with `node scripts/generate-vapid-keys.mjs`.
+	 */
 	const VAPID_PUBLIC_KEY =
-		'BEILObk2BQwxFm_9moEUYRtMVFuQzuy0VmPzO0CxCpbGpEY14CiEij65fWfCI77avqjt9Q8qO5WkfgzSCMnZiYA';
+		'BD3yOCgRGDKMle-0FvZSCbr-B2SwiJ0925X2XeHNBIbLXbZkLtREseIqaW7nhz-M9g-KGlnjFGRTZp1USn_HWxo';
 
 	const NAV = [
 		{ href: '/', label: 'Beranda' },
@@ -438,27 +445,37 @@
 		</div>
 	{/if}
 
-	<!-- Mobile navigation -->
-	{#if mobileMenuOpen}
-		<nav
-			class="lg:hidden border-t border-line bg-surface-0/95 backdrop-blur-md animate-fade-in"
-			aria-label="Navigasi mobile"
-		>
-			<div class="max-w-7xl mx-auto px-3 py-2 flex flex-col">
-				{#each NAV as link (link.href)}
-					{@const active = $page.url.pathname === link.href}
-					<a
-						href={link.href}
-						aria-current={active ? 'page' : undefined}
-						class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors
-						       {active ? 'bg-accent-soft text-accent' : 'text-content-muted hover:bg-surface-2 hover:text-content'}"
-					>
-						{link.label}
-					</a>
-				{/each}
-			</div>
-		</nav>
-	{/if}
+<!--
+  Mobile navigation.
+
+  The header is translucent when scrolled, so plain text links over page
+  content were hard to read. The drawer now sits on an opaque surface with a
+  solid border, and each row has its own background so contrast never depends
+  on what is behind the header.
+-->
+{#if mobileMenuOpen}
+	<nav
+		class="lg:hidden border-t border-line bg-surface-0 animate-fade-in shadow-lg"
+		aria-label="Navigasi mobile"
+	>
+		<div class="max-w-7xl mx-auto px-3 py-2 flex flex-col gap-1">
+			{#each NAV as link (link.href)}
+				{@const active = $page.url.pathname === link.href}
+				<a
+					href={link.href}
+					aria-current={active ? 'page' : undefined}
+					class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-semibold
+					       transition-colors
+					       {active
+						? 'bg-accent text-accent-on'
+						: 'bg-surface-2 text-content hover:bg-surface-3'}"
+				>
+					{link.label}
+				</a>
+			{/each}
+		</div>
+	</nav>
+{/if}
 </header>
 
 <!-- Click-away layer for the theme popover -->

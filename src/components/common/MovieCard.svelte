@@ -14,31 +14,18 @@
 	const latestEp = $derived(getLatestEp(item.episodes));
 
 	/**
-	 * Play affordance.
+	 * Navigates straight to the synopsis page on a single click/tap.
 	 *
-	 * On touch devices there is no hover, so the play overlay has to appear on
-	 * tap. The first tap reveals it, and a second tap (on the now-visible
-	 * overlay) navigates — this avoids navigating on an accidental tap while
-	 * still giving immediate visual feedback that the card is a video.
+	 * The previous version required two taps on touch devices (first tap only
+	 * revealed the play overlay), which felt broken. The play overlay is now
+	 * shown on press via CSS only, so a single tap both shows the feedback and
+	 * navigates.
 	 */
 	let pressed = $state(false);
 	let navigating = $state(false);
 
-	function onActivate() {
-		if (navigating) return;
-
-		const isTouch =
-			typeof window !== 'undefined' &&
-			window.matchMedia?.('(hover: none)').matches === true;
-
-		if (isTouch && !pressed) {
-			pressed = true;
-			return;
-		}
-		open();
-	}
-
 	async function open() {
+		if (navigating) return;
 		navigating = true;
 		try {
 			await api.trackView(item.id);
@@ -49,13 +36,12 @@
 	}
 </script>
 
-<article class="group">
+<article class="group h-full">
 	<button
 		type="button"
-		onclick={onActivate}
-		onblur={() => (pressed = false)}
-		class="block w-full text-left rounded-lg sm:rounded-xl overflow-hidden border border-line
-		       bg-surface-1 transition-colors duration-150 ease-smooth
+		onclick={open}
+		class="flex flex-col h-full w-full text-left rounded-lg sm:rounded-xl overflow-hidden
+		       border border-line bg-surface-1 transition-colors duration-150 ease-smooth
 		       hover:border-line-strong focus-visible:border-accent"
 		aria-label={`Lihat ${item.title}`}
 	>
@@ -74,17 +60,13 @@
 			/>
 
 			<!--
-			  Play overlay.
-
-			  Visibility is driven by a `data-visible` attribute rather than by
-			  swapping Tailwind opacity classes. Tailwind's content scanner could
-			  not see `opacity-100` inside the conditional class string, so the
-			  rule was never generated and the overlay stayed invisible on touch
-			  devices. The styles below are explicit, so they always exist.
+			  Play overlay. Visibility comes from CSS only (hover, focus, or the
+			  :active press state), so a single tap both shows the feedback and
+			  navigates — no two-step interaction.
 			-->
 			<div class="card-play-overlay" data-visible={pressed} aria-hidden="true">
 				<span class="card-play-button">
-					<Icon name="play" class="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" stroke={0} />
+					<Icon name="play" class="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" />
 				</span>
 			</div>
 
@@ -110,7 +92,7 @@
 			{/if}
 		</div>
 
-		<div class="p-1.5 sm:p-2.5">
+		<div class="p-1.5 sm:p-2.5 flex-1 flex flex-col">
 			<h3
 				class="text-[11px] sm:text-[13px] font-medium leading-snug text-content line-clamp-2
 				       group-hover:text-accent transition-colors duration-150"
@@ -119,7 +101,7 @@
 				{item.title}
 			</h3>
 
-			<div class="mt-1 hidden sm:flex items-center justify-between text-[11px] text-content-subtle">
+			<div class="mt-auto pt-1 hidden sm:flex items-center justify-between text-[11px] text-content-subtle">
 				<span class="inline-flex items-center gap-1 tabular-nums">
 					<Icon name="eye" class="w-3 h-3" />
 					{(item.views || 0).toLocaleString('id-ID')}
@@ -135,7 +117,7 @@
 			</div>
 
 			<!-- Views stay visible on mobile, just below the title -->
-			<div class="mt-1 flex sm:hidden items-center gap-1 text-[10px] text-content-subtle">
+			<div class="mt-auto pt-1 flex sm:hidden items-center gap-1 text-[10px] text-content-subtle">
 				<Icon name="eye" class="w-2.5 h-2.5" />
 				<span class="tabular-nums">{(item.views || 0).toLocaleString('id-ID')}</span>
 			</div>

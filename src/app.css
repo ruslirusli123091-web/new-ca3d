@@ -403,11 +403,12 @@ body {
 	pointer-events: none;
 }
 
-/* Visible on hover (pointer devices), on focus (keyboard) and after a tap
-   (touch devices, where there is no hover). */
+/* Visible on hover (pointer devices), on focus (keyboard) and while pressed
+   (touch devices, which have no hover state). */
 .card-play-overlay[data-visible='true'],
 article:hover .card-play-overlay,
-article:focus-within .card-play-overlay {
+article:focus-within .card-play-overlay,
+article:active .card-play-overlay {
 	opacity: 1;
 }
 
@@ -427,7 +428,8 @@ article:focus-within .card-play-overlay {
 
 .card-play-overlay[data-visible='true'] .card-play-button,
 article:hover .card-play-button,
-article:focus-within .card-play-button {
+article:focus-within .card-play-button,
+article:active .card-play-button {
 	transform: scale(1);
 }
 

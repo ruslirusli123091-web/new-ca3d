@@ -181,7 +181,9 @@
 					aria-pressed={isBookmarked}
 					aria-label={isBookmarked ? 'Hapus dari koleksi' : 'Simpan ke koleksi'}
 				>
-					<Icon name="bookmark" class="w-4 h-4" stroke={isBookmarked ? 0 : 1.75} />
+					<!-- Shows a check mark once saved, so the state is unambiguous
+					     instead of relying on colour alone. -->
+					<Icon name={isBookmarked ? 'check' : 'bookmark'} class="w-4 h-4" />
 					<span class="hidden sm:inline">{isBookmarked ? 'Tersimpan' : 'Simpan'}</span>
 				</button>
 

@@ -109,6 +109,15 @@
 		})
 	);
 
+	/**
+	 * Episode chunking.
+	 *
+	 * `chunk` is the active block index, and `chunkInitialisedFor` records
+	 * whether the current episode has already been located. Without that flag
+	 * the "keep the active block in sync" effect re-ran on every chunk change
+	 * and immediately snapped the selection back to the episode's own block,
+	 * which is why the 01–24 style buttons appeared unclickable.
+	 */
 	const CHUNK_SIZE = 24;
 	const chunks = $derived.by(() => {
 		const out: (typeof episodes)[] = [];
@@ -118,10 +127,13 @@
 		return out;
 	});
 
-	// Keep the active chunk in sync when navigating between episodes.
+	let chunkInitialisedFor = '';
 	$effect(() => {
+		const key = `${item.id}:${ep}:${ascending}`;
+		if (untrack(() => chunkInitialisedFor) === key) return;
+		chunkInitialisedFor = key;
 		const idx = chunks.findIndex((c) => c.some((e) => e.ep === ep));
-		if (idx !== -1 && idx !== chunk) chunk = idx;
+		chunk = idx === -1 ? 0 : idx;
 	});
 
 	const watched = $derived(new Set($history.filter((h) => h.id === item.id).map((h) => h.ep)));
@@ -250,26 +262,27 @@
 					</button>
 
 					{#if streams.length > 1}
-						<!-- Server picker. Shown as real buttons rather than a <select>,
-						     so the active mirror is visible and the count is obvious. -->
-						<div class="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
-							{#each streams as s, i (i)}
-								<button
-									type="button"
-									onclick={() => (activeUrl = s.url)}
-									class="px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap border
-									       transition-colors duration-150
-									       {s.url === activeUrl
-										? 'bg-accent text-accent-on border-accent'
-										: 'bg-surface-2 text-content-muted border-line hover:text-content'}"
-									aria-pressed={s.url === activeUrl}
-								>
-									{s.name}
-								</button>
-							{/each}
-						</div>
+						<!-- Server picker as a dropdown: showing every mirror as its own
+						     button pushed the controls onto a second row. -->
+						<label class="relative flex-shrink-0">
+							<span class="sr-only">Pilih server</span>
+							<select
+								value={activeUrl}
+								onchange={(e) => (activeUrl = e.currentTarget.value)}
+								class="input !w-auto !py-2 !pr-8 !pl-3 !text-xs cursor-pointer appearance-none"
+							>
+								{#each streams as s, i (i)}
+									<option value={s.url}>{s.name}</option>
+								{/each}
+							</select>
+							<Icon
+								name="chevron-down"
+								class="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2
+								       text-content-subtle pointer-events-none"
+							/>
+						</label>
 					{:else if streams.length === 1}
-						<span class="badge-neutral">{streams[0].name}</span>
+						<span class="badge-neutral flex-shrink-0">{streams[0].name}</span>
 					{/if}
 
 					{#if data.prevEp}

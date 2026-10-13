@@ -108,18 +108,13 @@
 	<!--
 	  Hero.
 
-	  The previous version stretched a 2:3 portrait poster across a wide banner
-	  with `object-cover`, which cropped the artwork into an unrecognisable strip
-	  and made it look squashed. It also laid the title over a mid-tone gradient,
-	  so on mobile the text sat on top of bright artwork and became unreadable.
-
-	  This version keeps the poster at its real aspect ratio in a fixed-width
-	  column, and uses a heavily blurred, darkened copy of the same image as the
-	  backdrop. Text sits on a solid dark scrim, so contrast is stable no matter
-	  which artwork is showing.
+	  On mobile it stays edge-to-edge. From `lg` up it is constrained to the same
+	  7xl container as the header and the rest of the page, so it no longer bleeds
+	  past the content column on desktop. The poster keeps its real 2:3 ratio and
+	  the text sits on a solid surface, so contrast never depends on the artwork.
 	-->
 	{#if current}
-		<section class="relative overflow-hidden border-b border-line" aria-label="Rekomendasi utama">
+		<section class="relative overflow-hidden border-b border-line lg:border-b-0" aria-label="Rekomendasi utama">
 			<!-- Backdrop: blurred + darkened, never used to judge the artwork -->
 			{#each featured as item, i (item.id)}
 				<div
@@ -137,10 +132,13 @@
 				</div>
 			{/each}
 
-			<div class="relative max-w-7xl mx-auto px-4 py-8 md:py-12">
-				<div class="flex flex-col sm:flex-row gap-6 md:gap-8 items-center sm:items-start">
+			<div class="relative max-w-7xl mx-auto px-4 py-6 md:py-10">
+				<div
+					class="lg:rounded-2xl lg:border lg:border-line lg:bg-surface-1/60 lg:backdrop-blur-sm
+					       lg:p-8 flex flex-col sm:flex-row gap-5 md:gap-8 items-center sm:items-start"
+				>
 					<!-- Poster at true 2:3 aspect — never stretched -->
-					<div class="w-40 sm:w-44 md:w-52 flex-shrink-0">
+					<div class="w-36 sm:w-44 md:w-52 flex-shrink-0">
 						<div class="aspect-[2/3] rounded-xl overflow-hidden border border-line shadow-xl bg-surface-2">
 							<img
 								src={getOptimizedImageUrl(current.image, 400)}
@@ -172,7 +170,7 @@
 									class="inline-flex items-center gap-1 font-medium tabular-nums"
 									style="color: var(--warning)"
 								>
-									<Icon name="star" class="w-4 h-4" stroke={2} />
+									<Icon name="star" class="w-4 h-4" />
 									{current.rating.toFixed(1)}
 									<span class="text-content-subtle font-normal">/ 10</span>
 								</span>
@@ -202,7 +200,7 @@
 								onclick={() => goto(`/watch/${current.id}/${getLatestEp(current.episodes)}`)}
 								class="btn-primary"
 							>
-								<Icon name="play" class="w-4 h-4" stroke={0} />
+								<Icon name="play" class="w-4 h-4" />
 								Tonton sekarang
 							</button>
 							<a href={`/synopsis/${current.id}`} class="btn-secondary">Detail</a>
