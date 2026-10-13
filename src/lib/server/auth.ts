@@ -1,6 +1,14 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { readSession, SESSION_COOKIE, type SessionData } from './session';
 
+/**
+ * Session handling.
+ *
+ * The only authenticated role is `admin`. Public visitors are anonymous by
+ * design: bookmarks, watch history and the comment nickname live in their
+ * own browser, so there is no member account to authenticate or protect.
+ */
+
 export async function getSession(event: RequestEvent): Promise<SessionData | null> {
 	const token = event.cookies.get(SESSION_COOKIE);
 	return readSession(event.platform, token);
@@ -9,12 +17,6 @@ export async function getSession(event: RequestEvent): Promise<SessionData | nul
 export async function requireAdmin(event: RequestEvent): Promise<SessionData | null> {
 	const session = await getSession(event);
 	if (!session || session.role !== 'admin') return null;
-	return session;
-}
-
-export async function requireMember(event: RequestEvent): Promise<SessionData | null> {
-	const session = await getSession(event);
-	if (!session || (session.role !== 'member' && session.role !== 'admin')) return null;
 	return session;
 }
 

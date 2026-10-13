@@ -21,15 +21,14 @@ CREATE TABLE IF NOT EXISTS donghua (
 CREATE INDEX IF NOT EXISTS idx_donghua_lastUpdated ON donghua (lastUpdated DESC);
 CREATE INDEX IF NOT EXISTS idx_donghua_views ON donghua (views DESC);
 
--- Members -------------------------------------------------------------------
--- password stores "pbkdf2$<iter>$<salt>$<hash>" (legacy sha256 auto-upgrades).
-CREATE TABLE IF NOT EXISTS users (
-	username   TEXT PRIMARY KEY,
-	password   TEXT NOT NULL,
-	bookmarks  TEXT NOT NULL DEFAULT '[]',
-	history    TEXT NOT NULL DEFAULT '[]',
-	joinedAt   INTEGER NOT NULL
-);
+-- ============================================================
+-- NOTE: there is intentionally NO `users` table.
+--
+-- Public visitors are anonymous: bookmarks, watch history and the
+-- comment nickname are stored in each visitor's own browser
+-- (localStorage) and never reach the server. The only account in
+-- this system is the site administrator (see `admins` below).
+-- ============================================================
 
 -- Admins --------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS admins (

@@ -4,11 +4,13 @@
  *
  *   node scripts/hash-password.mjs "MyStrongPassword"
  *
- * Then insert it into D1:
+ * Then insert it into D1 (the only account in this system is the admin):
+ *
  *   INSERT OR REPLACE INTO admins (username, password) VALUES ('admin', '<hash>');
- * or for a member:
- *   INSERT OR REPLACE INTO users (username, password, bookmarks, history, joinedAt)
- *   VALUES ('user', '<hash>', '[]', '[]', <now>);
+ *
+ * Public visitors do not have accounts: bookmarks, history and the comment
+ * nickname are stored in each visitor's own browser, so there is no `users`
+ * table to populate.
  */
 import { webcrypto as crypto } from 'node:crypto';
 

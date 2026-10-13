@@ -38,19 +38,3 @@ export interface HistoryItem {
 	id: string;
 	ep: string;
 }
-
-export interface User {
-	username: string;
-	password?: string;
-	display_name: string;
-	status: 'active' | 'banned';
-	bookmarks?: string[];
-	history?: HistoryItem[];
-}
-
-export interface PublicUser {
-	username: string;
-	display_name: string;
-	bookmarks: string[];
-	history: HistoryItem[];
-}

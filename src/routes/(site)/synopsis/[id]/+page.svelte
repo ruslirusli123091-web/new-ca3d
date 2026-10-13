@@ -3,13 +3,13 @@
 	import { goto } from '$app/navigation';
 	import type { Donghua, Chat } from '$lib/types';
 	import { api } from '$lib/api';
-	import { user as userStore } from '$lib/stores/user';
+	import { bookmarks, history, nickname, toggleBookmark } from '$lib/stores/library';
 	import { getOptimizedImageUrl } from '$lib/utils/helpers';
 	import { updateSEO } from '$lib/seo';
 	import ExpandableText from '$components/common/ExpandableText.svelte';
 	import SidebarItem from '$components/common/SidebarItem.svelte';
 	import SidebarButtons from '$components/common/SidebarButtons.svelte';
-	import AuthModal from '$components/auth/AuthModal.svelte';
+	import Turnstile from '$components/auth/Turnstile.svelte';
 	import LoadingBar from '$components/common/LoadingBar.svelte';
 
 	let { data }: { data: Donghua[] } = $props();
@@ -20,12 +20,13 @@
 
 	let activeChunk = $state(0);
 	let isAscending = $state(true);
-	let showAuthModal = $state(false);
 	let userRating = $state(0);
 	let hoverRating = $state(0);
 	let reviewText = $state('');
 	let submittingReview = $state(false);
 	let reviewMsg = $state('');
+	let turnstileToken = $state('');
+	let website = $state(''); // honeypot
 
 	// Deep-link fallback fetch
 	$effect(() => {
@@ -46,7 +47,8 @@
 		}
 	});
 
-	const isBookmarked = $derived($userStore?.bookmarks?.includes(item?.id ?? '') ?? false);
+	// Bookmark state comes straight from localStorage — no account involved.
+	const isBookmarked = $derived(!!item && $bookmarks.includes(item.id));
 	const popularList = $derived([...data].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
 	const recommendations = $derived(
 		data.filter((x) => x.id !== item?.id).sort(() => 0.5 - Math.random()).slice(0, 5)
@@ -73,22 +75,12 @@
 		return chunks;
 	});
 
-	async function toggleBookmark() {
+	// Bookmarks are per-browser (localStorage). No login, no server sync.
+	function handleToggleBookmark() {
 		if (!item) return;
-		if (!$userStore) {
-			showAuthModal = true;
-			return;
-		}
-		const currentBookmarks = $userStore.bookmarks || [];
-		const newBookmarks = isBookmarked
-			? currentBookmarks.filter((b) => b !== item.id)
-			: [...currentBookmarks, item.id];
-		userStore.update((u) => (u ? { ...u, bookmarks: newBookmarks } : u));
-		try {
-			await api.syncUser(newBookmarks, $userStore?.history);
-		} catch (e) {
-			console.error('Gagal menyimpan bookmark ke database', e);
-		}
+		const added = toggleBookmark(item.id);
+		// Give instant feedback without any network round-trip.
+		reviewMsg = added ? '' : '';
 	}
 
 	async function handleShare() {
@@ -111,32 +103,43 @@
 
 	async function handleSubmitReview() {
 		if (!item) return;
-		if (!$userStore) {
-			showAuthModal = true;
-			return;
-		}
+		if (website) return; // honeypot filled → silently drop
 		if (userRating === 0 || !reviewText.trim()) {
 			reviewMsg = 'Kasih rating bintang dan tulis komentar dulu ya.';
 			return;
 		}
 		submittingReview = true;
 		reviewMsg = '';
+
+		// Nickname is stored locally; ask once, then remember it.
+		let name = $nickname;
+		if (!name) {
+			const input = prompt('Masukkan nama tampilan untuk komentar (maks 24 karakter):');
+			if (!input || !input.trim()) {
+				reviewMsg = 'Nama wajib diisi untuk mengirim komentar.';
+				submittingReview = false;
+				return;
+			}
+			name = input.trim().slice(0, 24);
+			nickname.set(name);
+		}
+
 		const review: Partial<Chat> = {
 			id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 			timestamp: Date.now(),
-			user: $userStore.display_name || $userStore.username,
+			user: name,
 			text: reviewText.trim(),
 			donghuaId: String(item.id),
 			ep: 'rating',
 			rating: userRating
 		};
 		try {
-			await api.sendChat(review);
+			await api.sendChat(review, turnstileToken || undefined);
 			reviewMsg = 'Makasih! Rating dan komentar kamu berhasil dikirim.';
 			userRating = 0;
 			reviewText = '';
-		} catch {
-			reviewMsg = 'Gagal mengirim, coba lagi ya.';
+		} catch (err) {
+			reviewMsg = (err as Error).message || 'Gagal mengirim, coba lagi ya.';
 		} finally {
 			submittingReview = false;
 		}
@@ -170,12 +173,6 @@
 	</div>
 {:else}
 	<div class="pb-20">
-		<AuthModal
-			isOpen={showAuthModal}
-			onClose={() => (showAuthModal = false)}
-			turnstileSiteKey={$page.data.turnstileSiteKey ?? ''}
-		/>
-
 		<div class="relative w-full min-h-[500px] md:h-[500px] flex items-end">
 			<div class="absolute inset-0 h-full">
 				<img
@@ -247,7 +244,7 @@
 						</button>
 
 						<button
-							onclick={toggleBookmark}
+							onclick={handleToggleBookmark}
 							class={[
 								'brutal-press w-12 h-12 flex items-center justify-center border-2 shadow-brutal-sm transition-colors',
 								isBookmarked
@@ -298,20 +295,7 @@
 
 				<div class="bg-bg-secondary p-6">
 					<h3 class="text-lg font-bold text-text-main mb-4">Beri Rating &amp; Komentar</h3>
-					{#if !$userStore}
-						<div class="border-2 border-dashed border-ink p-5 text-center">
-							<p class="text-sm text-text-muted mb-3">
-								Silakan login dulu untuk memberi rating dan komentar setelah nonton.
-							</p>
-							<button
-								onclick={() => (showAuthModal = true)}
-								class="brutal-press bg-primary text-text-on-primary shadow-brutal-sm font-bold text-sm px-5 py-2"
-							>
-								Login Sekarang
-							</button>
-						</div>
-					{:else}
-						<div>
+					<div>
 							<div class="flex items-center gap-1 mb-3">
 								{#each [1, 2, 3, 4, 5] as star (star)}
 									<button
@@ -357,8 +341,15 @@
 									{submittingReview ? 'Mengirim...' : 'Kirim'}
 								</button>
 							</div>
-						</div>
-					{/if}
+							{#if $page.data.turnstileSiteKey}
+								<div class="turnstile-slot mt-3">
+									<Turnstile
+										siteKey={$page.data.turnstileSiteKey}
+										onVerify={(t) => (turnstileToken = t)}
+									/>
+								</div>
+							{/if}
+					</div>
 				</div>
 
 				<div class="bg-bg-secondary p-5">
@@ -406,7 +397,7 @@
 						class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-[500px] overflow-y-auto pr-1 custom-scroll"
 					>
 						{#each episodeChunks[activeChunk] ?? [] as e (e.ep)}
-							{@const isWatched = $userStore?.history?.some((h) => h.id === item.id && h.ep === e.ep)}
+							{@const isWatched = $history.some((h) => h.id === item.id && h.ep === e.ep)}
 							<button
 								onclick={() => goto(`/watch/${item.id}/${e.ep}`)}
 								class={[

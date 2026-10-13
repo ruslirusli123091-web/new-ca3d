@@ -1,6 +1,6 @@
 import { hmacSign, hmacVerify, randomToken, timingSafeEqual } from './crypto';
 
-export type Role = 'admin' | 'member';
+export type Role = 'admin';
 
 export interface SessionData {
 	sub: string; // username

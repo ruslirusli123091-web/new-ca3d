@@ -3,12 +3,12 @@
 	import { goto } from '$app/navigation';
 	import type { Donghua, Chat, Episode } from '$lib/types';
 	import { api } from '$lib/api';
-	import { user as userStore } from '$lib/stores/user';
+	import { history, nickname, pushHistory } from '$lib/stores/library';
 	import { timeAgo } from '$lib/utils/helpers';
 	import { updateSEO } from '$lib/seo';
 	import SidebarItem from '$components/common/SidebarItem.svelte';
 	import SidebarButtons from '$components/common/SidebarButtons.svelte';
-	import AuthModal from '$components/auth/AuthModal.svelte';
+	import Turnstile from '$components/auth/Turnstile.svelte';
 	import LoadingBar from '$components/common/LoadingBar.svelte';
 
 	let { data }: { data: Donghua[] } = $props();
@@ -24,9 +24,10 @@
 	let chats = $state<Chat[]>([]);
 	let forceLandscape = $state(false);
 	let isAscending = $state(true);
-	let showAuthModal = $state(false);
 	let currentUrl = $state('');
 	let activeChunk = $state(0);
+	let turnstileToken = $state('');
+	let website = $state(''); // honeypot
 
 	// Deep-link fallback fetch
 	$effect(() => {
@@ -66,17 +67,8 @@
 			const newUrl = streams[0]?.url || '';
 			if (currentUrl !== newUrl) currentUrl = newUrl;
 
-			// Update user history
-			const u = $userStore;
-			if (u) {
-				const lastHist = u.history?.[0];
-				if (!lastHist || lastHist.id !== id || lastHist.ep !== ep) {
-					const newHist = (u.history || []).filter((h) => h.id !== id);
-					newHist.unshift({ id: id!, ep: ep! });
-					userStore.update((cur) => (cur ? { ...cur, history: newHist.slice(0, 50) } : cur));
-					api.syncUser(u.bookmarks, newHist.slice(0, 50));
-				}
-			}
+			// Record watch progress in this browser only (localStorage).
+			if (id && ep) pushHistory(id, ep);
 
 			api.fetchChats().then((allChats) => {
 				chats = allChats.filter((c) => c.donghuaId === id && c.ep === ep);
@@ -120,10 +112,22 @@
 
 	async function sendChat(e: SubmitEvent) {
 		e.preventDefault();
-		if (!chatMsg.trim() || !$userStore || !item) return;
+		if (!chatMsg.trim() || !item) return;
+		if (website) return; // honeypot filled → silently drop
+
+		// Nickname lives in the visitor's browser; ask once and remember it.
+		let name = $nickname;
+		if (!name) {
+			const input = prompt('Masukkan nama tampilan untuk komentar (maks 24 karakter):');
+			if (!input || !input.trim()) return;
+			name = input.trim().slice(0, 24);
+			nickname.set(name);
+		}
+
+		const text = chatMsg;
 		const newChat: Partial<Chat> = {
-			user: $userStore.display_name,
-			text: chatMsg,
+			user: name,
+			text,
 			donghuaId: item.id,
 			ep: ep!,
 			timestamp: Date.now()
@@ -131,7 +135,7 @@
 		chats = [{ ...newChat, id: Date.now().toString() } as Chat, ...chats];
 		chatMsg = '';
 		try {
-			await api.sendChat(newChat);
+			await api.sendChat(newChat, turnstileToken || undefined);
 		} catch (err) {
 			alert((err as Error).message);
 		}
@@ -172,12 +176,6 @@
 	<div class="text-center mt-20 text-text-main font-bold">Episode Tidak Ditemukan</div>
 {:else}
 	<div class="max-w-7xl mx-auto px-4 py-8">
-		<AuthModal
-			isOpen={showAuthModal}
-			onClose={() => (showAuthModal = false)}
-			turnstileSiteKey={$page.data.turnstileSiteKey ?? ''}
-		/>
-
 		<div class="text-xs text-text-muted mb-4 flex items-center gap-2">
 			<a href="/" class="hover:text-primary">Home</a> /
 			<a href={`/synopsis/${id}`} class="hover:text-primary">{item.title}</a> /
@@ -334,14 +332,14 @@
 						</div>
 
 						<form onsubmit={sendChat} class="p-4 border-t border-ink bg-bg-card/30">
-							{#if $userStore}
-								<div class="flex gap-3">
-									<div
-										class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-									>
-										{$userStore.display_name[0]?.toUpperCase()}
-									</div>
-									<div class="flex-1 relative">
+							<div class="flex gap-3">
+								<div
+									class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+								>
+									{($nickname || 'A')[0]?.toUpperCase()}
+								</div>
+								<div class="flex-1">
+									<div class="relative">
 										<input
 											bind:value={chatMsg}
 											placeholder="Tulis komentar..."
@@ -354,20 +352,29 @@
 											>Kirim</button
 										>
 									</div>
+									<input
+										type="text"
+										bind:value={website}
+										tabindex="-1"
+										autocomplete="off"
+										aria-hidden="true"
+										class="hidden"
+										name="website"
+									/>
+									{#if $page.data.turnstileSiteKey}
+										<div class="turnstile-slot mt-2">
+											<Turnstile
+												siteKey={$page.data.turnstileSiteKey}
+												onVerify={(t) => (turnstileToken = t)}
+											/>
+										</div>
+									{/if}
+									<p class="text-[10px] text-text-muted mt-1">
+										Komentar dikirim sebagai <span class="font-bold">{$nickname || 'nama pilihanmu'}</span>.
+										Nama &amp; komentar tersimpan di server; bookmark dan riwayat tetap di browser kamu.
+									</p>
 								</div>
-							{:else}
-								<div class="w-full text-center py-2 bg-bg-card/20 rounded-lg border border-dashed border-gray-700">
-									<span class="text-xs text-text-muted">
-										Silahkan
-										<button
-											type="button"
-											onclick={() => (showAuthModal = true)}
-											class="text-primary hover:underline font-bold">Login</button
-										>
-										untuk ikut berkomentar
-									</span>
-								</div>
-							{/if}
+							</div>
 						</form>
 					</div>
 				</div>

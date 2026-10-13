@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { rowToChat } from '$lib/server/db';
-import { getDB, getSession, requireAdmin } from '$lib/server/auth';
+import { getDB, requireAdmin } from '$lib/server/auth';
 import { guard } from '$lib/server/guard';
 import { error, json } from '$lib/server/response';
 import { clientIp } from '$lib/server/rateLimit';
@@ -39,7 +39,15 @@ export const GET: RequestHandler = async (event) => {
 	}
 };
 
-/** PUT /api/chat - add a comment or (admin) delete one. */
+/**
+ * PUT /api/chat
+ *
+ * - `action: "add"` posts a comment. No account is required (visitors are
+ *   anonymous), so abuse is controlled by: strict rate limiting, Turnstile
+ *   when configured, a honeypot field, a profanity filter, and a per-user
+ *   ban list keyed by the nickname they choose.
+ * - `action: "delete"` is admin-only.
+ */
 export const PUT: RequestHandler = async (event) => {
 	const blocked = await guard(event, { bucket: 'comment', sameOrigin: true });
 	if (blocked) return blocked;
@@ -58,9 +66,6 @@ export const PUT: RequestHandler = async (event) => {
 		// Honeypot: hidden field must stay empty.
 		if (honeypotTripped(body)) return error('Ditolak', 403);
 
-		const session = await getSession(event);
-		if (!session) return error('Silakan login dulu', 401);
-
 		const turnstile = await verifyTurnstile(
 			event.platform?.env,
 			body.turnstileToken as string | undefined,
@@ -76,12 +81,15 @@ export const PUT: RequestHandler = async (event) => {
 
 		if (!text) return error('Komentar kosong', 400);
 
-		const username = session.sub;
+		// Nickname comes from the visitor's browser. Keep it safe and readable.
+		let user = sanitizeText(c.user, 24).replace(/[<>"'`\\/]/g, '').trim();
+		if (user.length < 2) user = 'Anonim';
+
 		const banned = await db
 			.prepare('SELECT 1 FROM banned_users WHERE username = ?')
-			.bind(username.toLowerCase())
+			.bind(user.toLowerCase())
 			.first();
-		if (banned) return error('Akun Anda dibanned', 403);
+		if (banned) return error('Nama ini diblokir oleh admin', 403);
 
 		const lower = text.toLowerCase();
 		if (PROFANITY.some((w) => lower.includes(w))) {
@@ -94,16 +102,7 @@ export const PUT: RequestHandler = async (event) => {
 			.prepare(
 				'INSERT INTO comments (id, user, text, timestamp, avatar, donghuaId, ep, rating) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
 			)
-			.bind(
-				id,
-				session.name || username,
-				text,
-				Date.now(),
-				'',
-				donghuaId,
-				ep,
-				rating
-			)
+			.bind(id, user, text, Date.now(), '', donghuaId, ep, rating)
 			.run();
 
 		return json({ status: 'Chat Saved' });

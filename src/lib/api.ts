@@ -1,9 +1,12 @@
-import type { Chat, Donghua, PublicUser } from '$lib/types';
+import type { Chat, Donghua } from '$lib/types';
 
 /**
- * All requests go to our own origin (`/api/...`) so cookies (HttpOnly session)
- * are sent automatically and no CORS `*` is needed. `credentials: 'same-origin'`
+ * All requests go to our own origin (`/api/...`) so the admin session cookie is
+ * sent automatically and no CORS `*` is needed. `credentials: 'same-origin'`
  * keeps the session cookie attached while blocking cross-site credential leaks.
+ *
+ * Public visitors are anonymous: bookmarks, history and the comment nickname
+ * are stored in their browser only, never on the server.
  */
 const jsonHeaders = (extra: Record<string, string> = {}) => ({
 	'Content-Type': 'application/json',
@@ -116,45 +119,12 @@ export const api = {
 		});
 	},
 
-	// ---- Member auth ----
-	register: async (username: string, pass: string, turnstileToken?: string) => {
-		const res = await fetch('/api/member/register', {
-			method: 'POST',
-			headers: jsonHeaders(),
-			credentials: 'same-origin',
-			body: JSON.stringify({ username, password: pass, turnstileToken })
-		});
-		return parse<{ status: string; user: PublicUser }>(res);
-	},
+	// NOTE: there is intentionally no member login/register/sync API.
+	// Bookmarks, watch history and the comment nickname live entirely in the
+	// visitor's browser (see $lib/stores/library.ts). The only authenticated
+	// account left is the site administrator.
 
-	login: async (username: string, pass: string, turnstileToken?: string) => {
-		const res = await fetch('/api/member/login', {
-			method: 'POST',
-			headers: jsonHeaders(),
-			credentials: 'same-origin',
-			body: JSON.stringify({ username, password: pass, turnstileToken })
-		});
-		return parse<{ status: string; user: PublicUser }>(res);
-	},
-
-	logout: async () => {
-		await fetch('/api/member/logout', {
-			method: 'POST',
-			headers: jsonHeaders(),
-			credentials: 'same-origin'
-		});
-	},
-
-	syncUser: async (bookmarks?: string[], history?: unknown[]) => {
-		return fetch('/api/member/sync', {
-			method: 'POST',
-			headers: jsonHeaders(),
-			credentials: 'same-origin',
-			body: JSON.stringify({ bookmarks, history })
-		});
-	},
-
-	// ---- Comments ----
+	// ---- Comments (public, but rate limited + Turnstile + honeypot) ----
 	sendChat: async (chat: Partial<Chat>, turnstileToken?: string) => {
 		_chatsCache = null;
 		const res = await fetch('/api/chat', {
