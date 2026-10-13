@@ -1,0 +1,25 @@
+# Cloudflare Pages deployment
+# SvelteKit adapter-cloudflare generates the Worker and copies this file.
+
+/*
+	X-Content-Type-Options: nosniff
+	X-Frame-Options: SAMEORIGIN
+	Referrer-Policy: strict-origin-when-cross-origin
+	Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+	Cross-Origin-Opener-Policy: same-origin
+	Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# Long-cache immutable build assets
+/_app/immutable/*
+	Cache-Control: public, max-age=31536000, immutable
+
+# Never cache API/auth responses
+/api/*
+	Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+	X-Robots-Tag: noindex, nofollow
+
+# Public static assets
+/*.png
+	Cache-Control: public, max-age=604800
+/*.ico
+	Cache-Control: public, max-age=604800

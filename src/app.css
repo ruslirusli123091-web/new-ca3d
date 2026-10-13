@@ -1,0 +1,492 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================
+   NEUMORPHISM DESIGN TOKENS - 4 selectable themes
+   Each theme is one base surface color with a lighter and a
+   darker derivative used for the soft dual-tone shadows that
+   make elements look gently raised or pressed.
+   ========================================================= */
+:root {
+	/* Slate (default) */
+	--bg-main: #1e2128;
+	--bg-secondary: #23262e;
+	--bg-card: #1e2128;
+	--bg-hover: #262a33;
+	--text-main: #eef0f5;
+	--text-muted: #9aa0ac;
+	--primary: #5b8def;
+	--primary-dark: #4a75d1;
+	--text-on-primary: #0c1117;
+	--neu-light: #282c36;
+	--neu-dark: #14161b;
+	--border-ink: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme='ocean'] {
+	--bg-main: #122023;
+	--bg-secondary: #16262a;
+	--bg-card: #122023;
+	--bg-hover: #1a2c30;
+	--text-main: #e8f6f7;
+	--text-muted: #8fa9ac;
+	--primary: #22d3ee;
+	--primary-dark: #17b8d1;
+	--text-on-primary: #04181a;
+	--neu-light: #182a2e;
+	--neu-dark: #0a1315;
+	--border-ink: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme='forest'] {
+	--bg-main: #131d16;
+	--bg-secondary: #17231a;
+	--bg-card: #131d16;
+	--bg-hover: #1b291e;
+	--text-main: #e9f5eb;
+	--text-muted: #8fa993;
+	--primary: #4ade80;
+	--primary-dark: #34c765;
+	--text-on-primary: #06180a;
+	--neu-light: #1a2820;
+	--neu-dark: #0b120d;
+	--border-ink: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme='amber'] {
+	--bg-main: #1f1810;
+	--bg-secondary: #251d13;
+	--bg-card: #1f1810;
+	--bg-hover: #2c2216;
+	--text-main: #f7f0e6;
+	--text-muted: #ab9d87;
+	--primary: #fbbf24;
+	--primary-dark: #e0a812;
+	--text-on-primary: #1a1206;
+	--neu-light: #2a2116;
+	--neu-dark: #130f09;
+	--border-ink: rgba(255, 255, 255, 0.07);
+}
+
+/* Light-mode variants - same 4 accent colors, bright surface instead of dark */
+[data-theme='slate-light'] {
+	--bg-main: #eef1f6;
+	--bg-secondary: #e6e9f0;
+	--bg-card: #eef1f6;
+	--bg-hover: #e2e6ee;
+	--text-main: #232630;
+	--text-muted: #6b7180;
+	--primary: #3a5fc4;
+	--primary-dark: #2e4da3;
+	--text-on-primary: #ffffff;
+	--neu-light: #ffffff;
+	--neu-dark: #d3d8e2;
+	--border-ink: rgba(0, 0, 0, 0.06);
+}
+[data-theme='ocean-light'] {
+	--bg-main: #e6f4f5;
+	--bg-secondary: #dcedf0;
+	--bg-card: #e6f4f5;
+	--bg-hover: #d3e9ec;
+	--text-main: #0e2a2d;
+	--text-muted: #4f7377;
+	--primary: #0891a8;
+	--primary-dark: #077288;
+	--text-on-primary: #ffffff;
+	--neu-light: #ffffff;
+	--neu-dark: #c7dde0;
+	--border-ink: rgba(0, 0, 0, 0.06);
+}
+[data-theme='forest-light'] {
+	--bg-main: #e9f3ea;
+	--bg-secondary: #dfeee1;
+	--bg-card: #e9f3ea;
+	--bg-hover: #d3e8d6;
+	--text-main: #12291a;
+	--text-muted: #4d6e55;
+	--primary: #1f9d53;
+	--primary-dark: #187f43;
+	--text-on-primary: #ffffff;
+	--neu-light: #ffffff;
+	--neu-dark: #cbe0cd;
+	--border-ink: rgba(0, 0, 0, 0.06);
+}
+[data-theme='amber-light'] {
+	--bg-main: #f7f0e3;
+	--bg-secondary: #f1e7d3;
+	--bg-card: #f7f0e3;
+	--bg-hover: #ecdfc4;
+	--text-main: #2b2013;
+	--text-muted: #71624a;
+	--primary: #b4790a;
+	--primary-dark: #93630a;
+	--text-on-primary: #ffffff;
+	--neu-light: #ffffff;
+	--neu-dark: #e3d5b8;
+	--border-ink: rgba(0, 0, 0, 0.06);
+}
+
+/* Admin Panel - its own dark neumorphic palette, independent of the
+   public site's theme picker (admin stays on one consistent look). */
+.admin-panel-root {
+	--admin-bg: #1b1e26;
+	--admin-bg-panel: #20232c;
+	--admin-border: rgba(255, 255, 255, 0.06);
+	--admin-neu-light: #262a34;
+	--admin-neu-dark: #121419;
+	--admin-text: #e7e9f0;
+	--admin-text-muted: #8b8f9e;
+	--admin-accent: #5b8def;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	background-color: var(--bg-main);
+	color: var(--text-main);
+	-webkit-tap-highlight-color: transparent;
+	transition: background-color 0.3s ease, color 0.3s ease;
+	position: relative;
+	margin: 0;
+}
+/* Subtle dot-grid texture - public site only, admin panel stays plain */
+.public-site-root {
+	background-image: radial-gradient(
+		color-mix(in srgb, var(--border-ink) 8%, transparent) 1px,
+		transparent 1px
+	);
+	background-size: 28px 28px;
+}
+
+/* Bold, high-contrast focus state instead of soft browser glow */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 3px solid var(--primary);
+	outline-offset: 2px;
+}
+
+::selection {
+	background-color: var(--primary);
+	color: var(--text-on-primary);
+}
+
+/* Custom Utilities */
+.forced-landscape {
+	position: fixed !important;
+	top: 50% !important;
+	left: 50% !important;
+	width: 100vh !important;
+	height: 100vw !important;
+	z-index: 2147483647 !important;
+	transform: translate(-50%, -50%) rotate(90deg) !important;
+	transform-origin: center center !important;
+}
+
+/* Line Clamp Utility */
+.line-clamp-2 {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.line-clamp-3 {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* Hide scrollbar for horizontal chip/tab rows, keep it functional */
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+/* Slim brutalist scrollbar for content panels */
+.custom-scroll::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+	background-color: var(--border-ink);
+	border: 2px solid var(--bg-secondary);
+}
+
+/* ---------------------------------------------------------
+   Signature interaction: soft neumorphic press. Hover lifts
+   slightly, active presses in with an inset shadow.
+   --------------------------------------------------------- */
+.brutal-press {
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.brutal-press:hover {
+	transform: translateY(-2px);
+}
+.brutal-press:active {
+	transform: translateY(0);
+	box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light) !important;
+}
+
+/* Loading ProgressBar exceptions */
+.loading-bar-pill .rounded-full {
+	border-radius: 9999px !important;
+}
+.loading-bar-pill .bg-white {
+	background-color: var(--bg-secondary) !important;
+}
+.loading-bar-pill .border-black {
+	border-color: transparent !important;
+}
+.loading-bar-pill > div:first-child {
+	width: min(85vw, 380px) !important;
+	box-shadow: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light) !important;
+}
+.loading-bar-pill > div:first-child > div {
+	box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
+}
+.loading-bar-pill h1 {
+	color: #16181c !important;
+}
+
+/* Banner carousel dots stay round */
+.banner-dot {
+	border-radius: 9999px !important;
+}
+
+/* Fast, staggered card entrance for grids */
+@keyframes card-pop-in {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.stagger-fade-grid > * {
+	animation: card-pop-in 0.35s ease-out both;
+}
+.stagger-fade-grid > *:nth-child(1) {
+	animation-delay: 0ms;
+}
+.stagger-fade-grid > *:nth-child(2) {
+	animation-delay: 30ms;
+}
+.stagger-fade-grid > *:nth-child(3) {
+	animation-delay: 60ms;
+}
+.stagger-fade-grid > *:nth-child(4) {
+	animation-delay: 90ms;
+}
+.stagger-fade-grid > *:nth-child(5) {
+	animation-delay: 120ms;
+}
+.stagger-fade-grid > *:nth-child(6) {
+	animation-delay: 150ms;
+}
+.stagger-fade-grid > *:nth-child(7) {
+	animation-delay: 180ms;
+}
+.stagger-fade-grid > *:nth-child(8) {
+	animation-delay: 210ms;
+}
+.stagger-fade-grid > *:nth-child(9) {
+	animation-delay: 240ms;
+}
+.stagger-fade-grid > *:nth-child(10) {
+	animation-delay: 270ms;
+}
+.stagger-fade-grid > *:nth-child(n + 11) {
+	animation-delay: 300ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.stagger-fade-grid > * {
+		animation: none;
+	}
+}
+
+/* Typewriter cursor */
+.typewriter-cursor {
+	display: inline-block;
+	margin-left: 2px;
+	animation: typewriter-blink 0.9s step-end infinite;
+}
+@keyframes typewriter-blink {
+	0%,
+	50% {
+		opacity: 1;
+	}
+	50.01%,
+	100% {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.typewriter-cursor {
+		animation: none;
+	}
+}
+
+/* Admin Panel rounding + palette */
+.admin-panel-root [class*='rounded'] {
+	border-radius: 14px !important;
+}
+.admin-panel-root .rounded-full {
+	border-radius: 9999px !important;
+}
+.admin-panel-root {
+	background-color: var(--admin-bg);
+	color: var(--admin-text);
+}
+.admin-panel-root .bg-slate-950,
+.admin-panel-root .bg-black {
+	background-color: var(--admin-bg) !important;
+}
+.admin-panel-root .bg-slate-900,
+.admin-panel-root .bg-slate-900\/50,
+.admin-panel-root .bg-slate-900\/90,
+.admin-panel-root .bg-slate-800,
+.admin-panel-root .bg-slate-800\/50,
+.admin-panel-root .bg-slate-700 {
+	background-color: var(--admin-bg-panel) !important;
+}
+.admin-panel-root .text-white,
+.admin-panel-root .text-slate-100,
+.admin-panel-root .text-slate-200 {
+	color: var(--admin-text) !important;
+}
+.admin-panel-root .text-slate-300,
+.admin-panel-root .text-slate-400,
+.admin-panel-root .text-slate-500 {
+	color: var(--admin-text-muted) !important;
+}
+.admin-panel-root .border-admin-ink,
+.admin-panel-root .border-slate-600,
+.admin-panel-root .border-slate-700,
+.admin-panel-root .border-slate-800 {
+	border-color: var(--admin-border) !important;
+}
+.admin-panel-root .bg-blue-600 {
+	background-color: var(--admin-accent) !important;
+}
+.admin-panel-root .hover\:bg-blue-500:hover,
+.admin-panel-root .hover\:bg-blue-600:hover {
+	filter: brightness(1.12);
+}
+.admin-panel-root .text-blue-400,
+.admin-panel-root .text-blue-500 {
+	color: var(--admin-accent) !important;
+}
+
+.admin-panel-root input[type='datetime-local'] {
+	color-scheme: dark;
+}
+
+/* ===========================================================
+   Admin Login screen - Neumorphism
+   =========================================================== */
+.admin-login-neu {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	width: 100%;
+	background: var(--admin-bg);
+	padding: 24px;
+}
+.admin-login-neu-card {
+	width: 100%;
+	max-width: 380px;
+	background: var(--admin-bg-panel);
+	border-radius: 24px;
+	box-shadow: 8px 8px 20px var(--admin-neu-dark), -8px -8px 20px var(--admin-neu-light);
+	padding: 36px 30px;
+	text-align: center;
+}
+.admin-login-neu-icon {
+	width: 64px;
+	height: 64px;
+	margin: 0 auto 18px;
+	border-radius: 9999px;
+	background: var(--admin-bg-panel);
+	box-shadow: 6px 6px 14px var(--admin-neu-dark), -6px -6px 14px var(--admin-neu-light);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.admin-login-neu-title {
+	font-family: 'Space Grotesk', sans-serif;
+	font-weight: 700;
+	font-size: 1.6em;
+	color: var(--admin-text);
+	margin: 0 0 4px;
+}
+.admin-login-neu-subtitle {
+	font-size: 0.8em;
+	color: var(--admin-text-muted);
+	margin: 0 0 26px;
+}
+.admin-login-neu-form {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+}
+.admin-login-neu-inputbx input {
+	width: 100%;
+	padding: 14px 20px;
+	background: var(--admin-bg-panel);
+	border: none;
+	border-radius: 14px;
+	box-shadow: inset 4px 4px 8px var(--admin-neu-dark), inset -4px -4px 8px var(--admin-neu-light);
+	font-size: 0.95em;
+	color: var(--admin-text);
+	outline: none;
+}
+.admin-login-neu-inputbx input::placeholder {
+	color: var(--admin-text-muted);
+}
+.admin-login-neu-submit {
+	width: 100%;
+	padding: 14px 20px;
+	background: var(--admin-bg-panel);
+	border: none;
+	border-radius: 14px;
+	box-shadow: 5px 5px 10px var(--admin-neu-dark), -5px -5px 10px var(--admin-neu-light);
+	font-weight: 700;
+	font-size: 0.9em;
+	letter-spacing: 0.5px;
+	color: var(--admin-accent);
+	cursor: pointer;
+	transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.admin-login-neu-submit:active {
+	box-shadow: inset 4px 4px 8px var(--admin-neu-dark), inset -4px -4px 8px var(--admin-neu-light);
+	transform: translateY(1px);
+}
+.admin-login-neu-msg {
+	color: #ff6b6b;
+	font-size: 0.8em;
+	font-weight: 700;
+	margin-top: 16px;
+}
+
+/* Turnstile widget wrapper (secure admin/member auth) */
+.turnstile-slot {
+	display: flex;
+	justify-content: center;
+	min-height: 65px;
+}

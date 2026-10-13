@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id" data-theme="slate">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<link rel="manifest" href="/manifest.json" />
+		<meta name="theme-color" content="#0a0a0a" />
+
+		<script>
+			// Apply the saved theme immediately (before hydration) so the very
+			// first paint - including the initial loading screen - already
+			// matches the user's saved light/dark preference instead of flashing
+			// the dark default first.
+			try {
+				var savedColor = localStorage.getItem('themeColor') || 'slate';
+				var savedMode = localStorage.getItem('themeMode') || 'dark';
+				var savedTheme = savedMode === 'light' ? savedColor + '-light' : savedColor;
+				document.documentElement.setAttribute('data-theme', savedTheme);
+			} catch (e) {}
+		</script>
+
+		<!-- Favicon & PWA -->
+		<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+		<link rel="icon" type="image/svg+xml" href="/logo.png" />
+		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+		<!-- Non-blocking Google Fonts -->
+		<link
+			rel="preload"
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Space+Grotesk:wght@500;700&display=swap"
+			as="style"
+		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Space+Grotesk:wght@500;700&display=swap"
+			rel="stylesheet"
+			media="print"
+			onload="this.media='all'"
+		/>
+		<noscript>
+			<link
+				href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Space+Grotesk:wght@500;700&display=swap"
+				rel="stylesheet"
+			/>
+		</noscript>
+
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
