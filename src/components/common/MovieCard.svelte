@@ -75,6 +75,16 @@
 				</div>
 			{/if}
 
+			{#if item.rating}
+				<div class="absolute top-1.5 left-1.5 z-10">
+					<span
+						class="bg-black/75 backdrop-blur-sm text-yellow-400 text-[10px] md:text-xs font-bold px-2 py-0.5 rounded shadow-sm border border-yellow-400/30 flex items-center gap-1"
+					>
+						★ {item.rating.toFixed(1)}
+					</span>
+				</div>
+			{/if}
+
 			<div class="absolute bottom-0 left-0 w-full z-10">
 				<div
 					class={[

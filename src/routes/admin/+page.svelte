@@ -36,6 +36,8 @@
 	let img = $state('');
 	let desc = $state('');
 	let status = $state('Ongoing');
+	// Manual rating entered by the admin (1.0 - 10.0). Empty = no rating shown.
+	let rating = $state<string>('');
 	let notifyMsg = $state('');
 	let sendNotification = $state(false);
 	let days = $state<string[]>([]);
@@ -117,6 +119,7 @@
 		img = '';
 		desc = '';
 		status = 'Ongoing';
+		rating = '';
 		notifyMsg = '';
 		days = [];
 		scheduleTime = '';
@@ -131,6 +134,7 @@
 			img = item.image;
 			desc = item.synopsis;
 			status = item.status || 'Ongoing';
+			rating = item.rating != null ? String(item.rating) : '';
 			days = item.day ? item.day.split(',') : [];
 			if (item.scheduledTime) {
 				const d = new Date(item.scheduledTime);
@@ -182,6 +186,8 @@
 			image: img,
 			synopsis: desc,
 			status,
+			// Empty input means "no rating"; otherwise clamp to 1.0 - 10.0.
+			rating: rating === '' ? undefined : Math.min(10, Math.max(1, Number(rating) || 0)),
 			day: days.join(','),
 			scheduledTime: scheduledTs,
 			episodes: formattedEpisodes,
@@ -615,6 +621,32 @@
 													<option value="Dropped">Dropped</option>
 												</select>
 											</div>
+										</div>
+										<div>
+											<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-rating"
+												>Rating (Manual)</label
+											>
+											<div class="flex items-center gap-3">
+												<input
+													id="ed-rating"
+													bind:value={rating}
+													type="number"
+													min="1"
+													max="10"
+													step="0.1"
+													placeholder="Contoh: 8.5"
+													class="flex-1 bg-slate-950 border border-admin-ink rounded-lg p-3 text-sm text-white outline-none"
+												/>
+												<button
+													type="button"
+													onclick={() => (rating = '')}
+													class="text-xs font-bold text-slate-500 hover:text-red-400 px-3 py-3 border border-admin-ink rounded-lg transition"
+													title="Kosongkan rating">Hapus</button
+												>
+											</div>
+											<p class="text-[10px] text-slate-500 mt-1">
+												Diisi manual oleh admin (1.0 - 10.0). Kosongkan bila belum ada rating.
+											</p>
 										</div>
 										<div>
 										<span class="block text-xs font-bold text-slate-400 uppercase mb-2">Jadwal Tayang</span>

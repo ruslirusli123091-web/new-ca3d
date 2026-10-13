@@ -19,6 +19,8 @@ export interface Donghua {
 	scheduledTime?: number;
 	episodes: Episode[];
 	views?: number;
+	/** Manual rating set by the admin in the panel (1.0 - 10.0). */
+	rating?: number;
 	lastUpdated?: number;
 	genres?: string[];
 	status?: string;

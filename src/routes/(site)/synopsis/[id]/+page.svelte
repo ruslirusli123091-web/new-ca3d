@@ -145,9 +145,26 @@
 				</h1>
 
 				<div class="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-text-muted font-bold mb-6">
+					{#if item.rating}
+						<span class="flex items-center gap-1 text-yellow-400">
+							★ {item.rating.toFixed(1)}
+						</span>
+					{/if}
 					<span class="flex items-center gap-1"
-						><span class="text-yellow-400">★</span>
-						{item.views ? (item.views / 1000).toFixed(1) + 'K' : 'N/A'}</span
+						><svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+							/><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+							/></svg
+						>
+						{item.views ? item.views.toLocaleString('id-ID') : 0}</span
 					>
 					<span>•</span>
 					<span>{item.episodes.length} Episode</span>

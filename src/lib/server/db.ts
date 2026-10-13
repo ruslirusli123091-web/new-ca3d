@@ -18,6 +18,8 @@ export function rowToDonghua(row: Record<string, unknown>): Donghua {
 		day: String(row.day ?? ''),
 		status: (row.status as string) || 'Ongoing',
 		views: Number(row.views ?? 0),
+		// Manual admin rating; null when the admin left it empty.
+		rating: row.rating != null ? Number(row.rating) : undefined,
 		scheduledTime: row.scheduledTime ? Number(row.scheduledTime) : undefined,
 		lastUpdated: row.lastUpdated ? Number(row.lastUpdated) : undefined,
 		episodes

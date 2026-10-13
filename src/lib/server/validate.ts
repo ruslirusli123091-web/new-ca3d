@@ -55,9 +55,22 @@ export interface ValidatedDonghua {
 	day: string;
 	status: string;
 	views: number;
+	rating: number | null;
 	scheduledTime: number | null;
 	lastUpdated: number;
 	episodes: Episode[];
+}
+
+/**
+ * Clamp an admin-entered rating to 1.0 - 10.0 with one decimal place.
+ * Returns null when the field is empty or not a usable number.
+ */
+export function sanitizeRating(input: unknown): number | null {
+	if (input === null || input === undefined || input === '') return null;
+	const num = Number(input);
+	if (!Number.isFinite(num)) return null;
+	const clamped = Math.min(10, Math.max(1, num));
+	return Math.round(clamped * 10) / 10;
 }
 
 /**
@@ -81,6 +94,7 @@ export function validateDonghua(input: unknown, now = Date.now()): ValidatedDong
 			? String(d.status)
 			: 'Ongoing',
 		views: Math.max(0, Math.floor(Number(d.views) || 0)),
+		rating: sanitizeRating(d.rating),
 		scheduledTime: d.scheduledTime ? Math.floor(Number(d.scheduledTime)) : null,
 		lastUpdated: Math.floor(Number(d.lastUpdated) || now),
 		episodes: sanitizeEpisodes(d.episodes)

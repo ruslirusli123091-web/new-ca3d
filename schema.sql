@@ -15,6 +15,8 @@
 -- ============================================================
 
 -- Donghua / anime catalogue ------------------------------------------------
+-- `rating` is entered manually by the admin (1.0 - 10.0). It is NOT collected
+-- from visitors: there is no public rating or comment feature.
 CREATE TABLE IF NOT EXISTS donghua (
 	id            TEXT PRIMARY KEY,
 	title         TEXT NOT NULL,
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS donghua (
 	image         TEXT DEFAULT '',
 	synopsis      TEXT DEFAULT '',
 	views         INTEGER NOT NULL DEFAULT 0,
+	rating        REAL,
 	scheduledTime INTEGER,
 	lastUpdated   INTEGER,
 	episodes      TEXT NOT NULL DEFAULT '[]',

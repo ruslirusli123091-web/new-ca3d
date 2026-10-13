@@ -26,8 +26,22 @@ tampilan disimpan di `localStorage` masing-masing pengunjung:
 - Tidak ada tabel `users` di D1
 - Pengunjung bisa backup/restore koleksinya lewat `/profile` (export/import JSON)
 
-Yang butuh autentikasi hanya **admin panel**, dan kredensialnya berasal dari
-**environment variable**, bukan database:
+## Satu-satunya akun: admin
+
+Hanya **admin** yang bisa menambah, mengedit, atau menghapus konten. Semua
+endpoint tulis dijaga `requireAdmin()` dan mengembalikan `401` tanpa sesi valid:
+
+| Endpoint | Method | Proteksi |
+|---|---|---|
+| `/api/donghua` | `PUT` (simpan/edit) | **Admin only** |
+| `/api/donghua` | `DELETE` (hapus) | **Admin only** |
+| `/api/notify` | `POST` | **Admin only** |
+| `/api/donghua` | `GET` (baca) | Publik, rate limited |
+| `/api/view` | `POST` (hitung view) | Publik, rate limited |
+
+Terverifikasi: `PUT` dan `DELETE` tanpa login → `401`, data tetap utuh.
+
+Kredensial admin berasal dari **environment variable**, bukan database:
 
 | Variable | Fungsi |
 |---|---|
@@ -37,6 +51,28 @@ Yang butuh autentikasi hanya **admin panel**, dan kredensialnya berasal dari
 
 Karena tidak ada tabel `admins`, dump database yang bocor **tidak mengekspos
 kredensial apa pun**.
+
+## Rating manual (bukan dari user)
+
+Rating **hanya diisi manual oleh admin** di panel admin. Tidak ada fitur rating
+atau komentar dari pengunjung.
+
+- Input `Rating (Manual)` di editor admin, rentang **1.0 - 10.0**
+- Server memvalidasi dan meng-clamp nilai (mis. input `999` → `10`)
+- Kosongkan input bila belum ada rating
+- Ditampilkan sebagai badge ★ di kartu donghua, halaman detail, dan halaman watch
+- Dikirim ke Google sebagai `aggregateRating` di JSON-LD, tapi **hanya jika admin
+  mengisinya** — tidak pernah mengarang skor
+
+## File environment
+
+| File | Isi | Status Git |
+|---|---|---|
+| `.env` | Nilai asli untuk Cloudflare | **Tidak di-push** (gitignored) |
+| `.env.example` | Template kosong | Di-push (aman) |
+| `.dev.vars` | Nilai asli untuk dev lokal | **Tidak di-push** (gitignored) |
+
+`.env` sudah dibuat dan berisi `SESSION_SECRET` yang digenerate otomatis.
 
 ## Jalankan lokal
 
@@ -70,10 +106,18 @@ npm run db:migrate:remote
 Jika database sudah pernah dibuat dengan schema lama:
 
 ```bash
-npm run db:cleanup:remote   # hapus tabel users/admins/comments/sessions
+npm run db:cleanup:remote      # hapus tabel users/admins/comments/sessions
+npm run db:add-rating:remote   # tambah kolom rating
 ```
 
 ### Secrets
+
+Buka file `.env` di project ini dan import nilainya ke Cloudflare:
+
+**Via Dashboard:** Workers & Pages → project → Settings → Environment variables
+→ Production → Add variable (tempel nama + value satu per satu).
+
+**Via CLI:**
 
 ```bash
 npx wrangler pages secret put SESSION_SECRET
@@ -81,9 +125,9 @@ npx wrangler pages secret put ADMIN_USERNAME
 npx wrangler pages secret put ADMIN_PASSWORD
 ```
 
-Atau untuk lokal, salin `.env.example` menjadi `.dev.vars` dan isi nilainya.
+Untuk dev lokal, salin `.env` menjadi `.dev.vars`.
 
-`SESSION_SECRET` bisa digenerate dengan:
+`SESSION_SECRET` bisa digenerate ulang dengan:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"

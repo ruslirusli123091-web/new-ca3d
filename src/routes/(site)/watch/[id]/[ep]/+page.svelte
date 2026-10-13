@@ -184,6 +184,9 @@
 							<h1 class="font-display text-lg font-bold text-text-main line-clamp-2 leading-tight">
 								{item.title} Episode {ep}
 							</h1>
+							{#if item.rating}
+								<span class="text-yellow-400 text-sm font-bold whitespace-nowrap">★ {item.rating.toFixed(1)}</span>
+							{/if}
 							<button
 								onclick={handleShare}
 								class="text-text-muted hover:text-primary transition"

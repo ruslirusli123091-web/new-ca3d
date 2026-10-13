@@ -89,8 +89,8 @@ export const PUT: RequestHandler = async (event) => {
 	const db = getDB(event);
 	const stmt = db.prepare(
 		`INSERT OR REPLACE INTO donghua
-		 (id, title, type, image, synopsis, views, scheduledTime, lastUpdated, episodes, day, status)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		 (id, title, type, image, synopsis, views, rating, scheduledTime, lastUpdated, episodes, day, status)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	);
 	const batch = items.map((item) =>
 		stmt.bind(
@@ -100,6 +100,7 @@ export const PUT: RequestHandler = async (event) => {
 			item.image,
 			item.synopsis,
 			item.views,
+			item.rating,
 			item.scheduledTime,
 			item.lastUpdated,
 			JSON.stringify(item.episodes),

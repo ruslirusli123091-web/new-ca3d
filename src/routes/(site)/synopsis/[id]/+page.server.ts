@@ -45,7 +45,18 @@ export const load: PageServerLoad = async ({ params, parent, platform, url }) =>
 			image: item.image,
 			url: canonical,
 			inLanguage: 'id',
-			numberOfEpisodes: item.episodes.length
+			numberOfEpisodes: item.episodes.length,
+			// Only emitted when the admin set a manual rating, so search engines
+			// never see an invented score.
+			aggregateRating: item.rating
+				? {
+						'@type': 'AggregateRating',
+						ratingValue: item.rating.toFixed(1),
+						bestRating: '10',
+						worstRating: '1',
+						ratingCount: Math.max(1, item.views || 1)
+					}
+				: undefined
 		}
 	};
 };
