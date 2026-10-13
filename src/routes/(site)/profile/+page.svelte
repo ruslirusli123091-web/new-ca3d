@@ -13,42 +13,40 @@
 	import { getOptimizedImageUrl } from '$lib/utils/helpers';
 	import MovieCard from '$components/common/MovieCard.svelte';
 	import SidebarItem from '$components/common/SidebarItem.svelte';
+	import Icon from '$components/common/Icon.svelte';
 
 	let { data }: { data: { donghua: Donghua[]; meta: Record<string, string> } } = $props();
 
 	const catalogue = $derived(data.donghua ?? []);
 
-	let activeTab = $state<'bookmarks' | 'history'>('bookmarks');
+	let tab = $state<'bookmarks' | 'history'>('bookmarks');
 	let nameInput = $state('');
-	let importMsg = $state('');
+	let notice = $state('');
 	let fileInput = $state<HTMLInputElement>();
 
-	// Keep the nickname input in sync with the stored value.
 	$effect(() => {
 		nameInput = $nickname;
 	});
 
-	const popularList = $derived(
-		[...catalogue].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5)
-	);
-	const randomList = $derived([...catalogue].sort(() => 0.5 - Math.random()).slice(0, 5));
+	const popular = $derived([...catalogue].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
+	const suggestions = $derived([...catalogue].sort(() => 0.5 - Math.random()).slice(0, 5));
 
-	const bookmarkedItems = $derived(catalogue.filter((d) => $bookmarks.includes(d.id)));
-	const historyList = $derived(
+	const savedItems = $derived(catalogue.filter((d) => $bookmarks.includes(d.id)));
+	const historyItems = $derived(
 		$history
 			.map((h) => {
 				const d = catalogue.find((x) => x.id === h.id);
 				return d ? { ...d, watchedEp: h.ep } : null;
 			})
-			.filter(Boolean)
+			.filter((x): x is Donghua & { watchedEp: string } => x !== null)
 	);
 
-	function saveNickname() {
+	function saveName() {
 		nickname.set(nameInput);
 		nameInput = $nickname;
 	}
 
-	function handleExport() {
+	function download() {
 		const blob = new Blob([exportLibrary()], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
@@ -56,18 +54,18 @@
 		a.download = `ca3d-koleksi-${new Date().toISOString().slice(0, 10)}.json`;
 		document.body.appendChild(a);
 		a.click();
-		document.body.removeChild(a);
+		a.remove();
 		URL.revokeObjectURL(url);
 	}
 
-	function handleImport(e: Event) {
+	function restore(e: Event) {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file) return;
 		const reader = new FileReader();
 		reader.onload = (ev) => {
-			const res = importLibrary(String(ev.target?.result || ''));
-			importMsg = res.ok ? 'Koleksi berhasil dipulihkan!' : `Gagal: ${res.error}`;
+			const res = importLibrary(String(ev.target?.result ?? ''));
+			notice = res.ok ? 'Koleksi berhasil dipulihkan.' : `Gagal: ${res.error}`;
 			input.value = '';
 		};
 		reader.readAsText(file);
@@ -75,242 +73,200 @@
 </script>
 
 <svelte:head>
-	<title>Koleksi Saya - Chinese Anime 3D</title>
+	<title>{data.meta.title} — Chinese Anime 3D</title>
+	<meta name="description" content={data.meta.description} />
 	<meta name="robots" content="noindex, nofollow" />
+	<link rel="canonical" href={data.meta.canonical} />
 </svelte:head>
 
-<div class="max-w-7xl mx-auto px-4 py-8 min-h-screen">
-	<div class="flex flex-col lg:flex-row gap-8">
-		<div class="flex-1 flex justify-center items-start pt-10">
-			<div class="w-full max-w-lg bg-bg-secondary p-8 text-center relative overflow-hidden">
-				<div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/20 to-transparent"></div>
-				<div
-					class="w-24 h-24 border-4 border-ink mx-auto flex items-center justify-center text-4xl font-bold text-text-main mb-4 relative z-10 shadow-brutal bg-bg-card"
+<div class="max-w-7xl mx-auto px-4 py-8">
+	<div class="flex flex-col lg:flex-row gap-10">
+		<div class="flex-1 min-w-0">
+			<header class="mb-8">
+				<h1 class="font-display text-2xl font-bold text-content">Koleksi saya</h1>
+				<p class="mt-1 text-sm text-content-muted">
+					Disimpan di browser ini saja — tidak ada akun dan tidak ada data yang dikirim ke server.
+				</p>
+			</header>
+
+			<!-- Display name, used for nothing but local labelling. -->
+			<section class="card p-4 mb-8">
+				<label class="label" for="nickname">Nama tampilan</label>
+				<div class="flex gap-2">
+					<input
+						id="nickname"
+						bind:value={nameInput}
+						type="text"
+						maxlength="24"
+						placeholder="Nama kamu"
+						class="input"
+					/>
+					<button type="button" onclick={saveName} class="btn-primary flex-shrink-0">Simpan</button>
+				</div>
+			</section>
+
+			<!-- Tabs -->
+			<div class="flex items-center gap-1 p-1 rounded-xl bg-surface-1 border border-line mb-6">
+				<button
+					type="button"
+					onclick={() => (tab = 'bookmarks')}
+					class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+					       transition-colors duration-150
+					       {tab === 'bookmarks' ? 'bg-surface-3 text-content' : 'text-content-muted hover:text-content'}"
+					aria-pressed={tab === 'bookmarks'}
 				>
-					{($nickname || 'A').charAt(0).toUpperCase()}
-				</div>
-				<h2 class="font-display text-2xl font-bold text-text-main mb-1">
-					{$nickname || 'Pengunjung'}
+					<Icon name="bookmark" class="w-4 h-4" />
+					Favorit
+					<span class="text-content-subtle tabular-nums">{$bookmarks.length}</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => (tab = 'history')}
+					class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+					       transition-colors duration-150
+					       {tab === 'history' ? 'bg-surface-3 text-content' : 'text-content-muted hover:text-content'}"
+					aria-pressed={tab === 'history'}
+				>
+					<Icon name="clock" class="w-4 h-4" />
+					Riwayat
+					<span class="text-content-subtle tabular-nums">{$history.length}</span>
+				</button>
+			</div>
+
+			{#if tab === 'bookmarks'}
+				{#if savedItems.length === 0}
+					<div class="card p-10 text-center">
+						<Icon name="bookmark" class="w-8 h-8 mx-auto text-content-subtle mb-3" />
+						<p class="text-sm text-content-muted">Belum ada judul tersimpan.</p>
+						<p class="mt-1 text-xs text-content-subtle">
+							Buka halaman detail judul lalu tekan tombol Simpan.
+						</p>
+					</div>
+				{:else}
+					<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+						{#each savedItems as item (item.id)}
+							<MovieCard {item} />
+						{/each}
+					</div>
+				{/if}
+			{:else}
+				{#if historyItems.length === 0}
+					<div class="card p-10 text-center">
+						<Icon name="clock" class="w-8 h-8 mx-auto text-content-subtle mb-3" />
+						<p class="text-sm text-content-muted">Belum ada riwayat tontonan.</p>
+					</div>
+				{:else}
+					<div class="flex justify-end mb-3">
+						<button
+							type="button"
+							onclick={clearHistory}
+							class="btn-ghost !text-xs"
+							style="color: var(--critical)"
+						>
+							<Icon name="trash" class="w-3.5 h-3.5" />
+							Hapus semua riwayat
+						</button>
+					</div>
+
+					<ul class="card divide-y divide-line overflow-hidden">
+						{#each historyItems as it (it.id)}
+							<li class="flex items-center gap-3 p-3 hover:bg-surface-2 transition-colors">
+								<a
+									href={`/watch/${it.id}/${it.watchedEp}`}
+									class="flex items-center gap-3 flex-1 min-w-0"
+								>
+									<img
+										src={getOptimizedImageUrl(it.image, 80)}
+										alt=""
+										width="40"
+										height="54"
+										class="w-10 h-14 rounded-md object-cover flex-shrink-0 bg-surface-2"
+										loading="lazy"
+									/>
+									<div class="min-w-0">
+										<p class="text-sm font-medium text-content truncate">{it.title}</p>
+										<p class="mt-0.5 text-xs text-content-subtle tabular-nums">
+											Episode {it.watchedEp}
+										</p>
+									</div>
+								</a>
+								<button
+									type="button"
+									onclick={() => removeHistory(it.id)}
+									class="btn-icon"
+									aria-label={`Hapus ${it.title} dari riwayat`}
+								>
+									<Icon name="close" class="w-4 h-4" />
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{/if}
+
+			<!-- Local backup -->
+			<section class="card p-4 mt-8">
+				<h2 class="flex items-center gap-2 text-sm font-semibold text-content mb-1">
+					<Icon name="database" class="w-4 h-4 text-accent" />
+					Cadangkan koleksi
 				</h2>
-				<span class="px-3 py-1 text-xs font-bold bg-primary/20 text-primary">Koleksi Lokal</span>
+				<p class="text-xs text-content-subtle mb-4">
+					Koleksi hanya ada di browser ini. Unduh berkas cadangan bila ingin berpindah perangkat atau
+					sebelum membersihkan data browser.
+				</p>
 
-				<!-- Nickname editor -->
-				<div class="mt-6 text-left">
-					<label class="block text-xs font-bold text-text-muted mb-1 uppercase tracking-wide" for="nick"
-						>Nama Tampilan (untuk komentar)</label
-					>
-					<div class="flex gap-2">
-						<input
-							id="nick"
-							bind:value={nameInput}
-							type="text"
-							maxlength="24"
-							placeholder="Misal: Budi"
-							class="flex-1 bg-bg-main p-3 text-text-main text-sm focus:border-primary outline-none transition shadow-inner"
-						/>
-						<button
-							onclick={saveNickname}
-							class="brutal-press bg-primary text-text-on-primary px-4 font-bold text-sm shadow-brutal-sm"
-							>Simpan</button
-						>
-					</div>
-				</div>
-
-				<div class="grid grid-cols-2 gap-4 mt-6 text-left">
-					<button
-						onclick={() => (activeTab = 'bookmarks')}
-						class={[
-							'bg-bg-main p-4 border-2 cursor-pointer transition text-left',
-							activeTab === 'bookmarks' ? 'border-primary shadow-brutal-sm' : 'border-ink hover:bg-bg-hover'
-						].join(' ')}
-					>
-						<div class="text-2xl font-black text-text-main mb-1">{$bookmarks.length}</div>
-						<div class="text-xs text-text-muted uppercase font-bold">Favorit</div>
+				<div class="flex flex-col sm:flex-row gap-2">
+					<button type="button" onclick={download} class="btn-secondary flex-1">
+						<Icon name="download" class="w-4 h-4" />
+						Unduh cadangan
 					</button>
-					<button
-						onclick={() => (activeTab = 'history')}
-						class={[
-							'bg-bg-main p-4 border-2 cursor-pointer transition text-left',
-							activeTab === 'history' ? 'border-primary shadow-brutal-sm' : 'border-ink hover:bg-bg-hover'
-						].join(' ')}
-					>
-						<div class="text-2xl font-black text-text-main mb-1">{$history.length}</div>
-						<div class="text-xs text-text-muted uppercase font-bold">Riwayat</div>
-					</button>
+
+					<input
+						bind:this={fileInput}
+						id="restore-file"
+						type="file"
+						accept="application/json,.json"
+						onchange={restore}
+						class="sr-only"
+					/>
+					<label for="restore-file" class="btn-secondary flex-1 cursor-pointer">
+						<Icon name="upload" class="w-4 h-4" />
+						Pulihkan dari berkas
+					</label>
 				</div>
 
-				<div class="mt-8 text-left">
-					<div class="flex border-b border-ink mb-4">
-						<button
-							onclick={() => (activeTab = 'bookmarks')}
-							class={[
-								'pb-2 pr-4 text-sm font-bold transition',
-								activeTab === 'bookmarks'
-									? 'text-primary border-b-2 border-primary'
-									: 'text-text-muted hover:text-text-main'
-							].join(' ')}
-							>Favorit Saya</button
-						>
-						<button
-							onclick={() => (activeTab = 'history')}
-							class={[
-								'pb-2 px-4 text-sm font-bold transition',
-								activeTab === 'history'
-									? 'text-primary border-b-2 border-primary'
-									: 'text-text-muted hover:text-text-main'
-							].join(' ')}
-							>Riwayat Tontonan</button
-						>
-					</div>
-					<div class="min-h-[300px]">
-						{#if activeTab === 'bookmarks'}
-							{#if bookmarkedItems.length === 0}
-								<div class="text-center py-10 text-text-muted text-sm border-2 border-dashed border-ink">
-									Belum ada favorit. Tekan ikon hati di halaman detail donghua.
-								</div>
-							{:else}
-								<div class="grid grid-cols-3 gap-3 max-h-[500px] overflow-y-auto pr-1 custom-scroll">
-									{#each bookmarkedItems as item (item.id)}
-										<MovieCard {item} />
-									{/each}
-								</div>
-							{/if}
-						{:else}
-							{#if historyList.length === 0}
-								<div class="text-center py-10 text-text-muted text-sm border-2 border-dashed border-ink">
-									Belum ada riwayat tontonan.
-								</div>
-							{:else}
-								<div class="flex justify-end mb-2">
-									<button
-										onclick={clearHistory}
-										class="brutal-press text-[10px] font-bold text-red-500 border border-red-500/40 px-2 py-1 hover:bg-red-500 hover:text-white transition"
-										>Hapus Semua Riwayat</button
-									>
-								</div>
-								<div class="space-y-3 max-h-[500px] overflow-y-auto pr-1 custom-scroll">
-									{#each historyList as item, idx (idx)}
-										{@const it = item as Donghua & { watchedEp: string }}
-										<div
-											class="flex gap-3 p-2 bg-bg-main cursor-pointer hover:border-primary transition group"
-										>
-											<div
-												onclick={() => goto(`/watch/${it.id}/${it.watchedEp}`)}
-												onkeydown={(e) => e.key === 'Enter' && goto(`/watch/${it.id}/${it.watchedEp}`)}
-												role="button"
-												tabindex="0"
-												class="flex gap-3 flex-1 min-w-0"
-											>
-												<div class="w-16 h-20 flex-shrink-0 rounded-poster overflow-hidden relative">
-													<img
-														src={getOptimizedImageUrl(it.image, 100)}
-														class="w-full h-full object-cover"
-														alt=""
-													/>
-													<div
-														class="absolute bottom-0 w-full bg-black/60 text-white text-[10px] text-center font-bold py-0.5"
-													>
-														Ep {it.watchedEp}
-													</div>
-												</div>
-												<div class="flex-1 min-w-0 flex flex-col justify-center">
-													<h4
-														class="font-bold text-text-main text-xs md:text-sm truncate group-hover:text-primary"
-													>
-														{it.title}
-													</h4>
-													<div class="text-[10px] text-text-muted mt-1">
-														Lanjut: Episode {it.watchedEp}
-													</div>
-													<div class="text-[10px] text-text-muted mt-auto">
-														{it.type === 'movie' ? 'Movie' : 'Series'}
-													</div>
-												</div>
-											</div>
-											<button
-												onclick={() => removeHistory(it.id)}
-												class="text-text-muted hover:text-red-500 text-xs px-2 self-start"
-												aria-label="Hapus dari riwayat">✕</button
-											>
-										</div>
-									{/each}
-								</div>
-							{/if}
-						{/if}
-					</div>
-				</div>
-
-				<!-- Backup / restore the local library -->
-				<div class="mt-8 pt-6 border-t border-ink text-left">
-					<h3 class="text-xs font-bold text-text-muted uppercase tracking-wide mb-3">
-						Backup Koleksi (opsional)
-					</h3>
-					<p class="text-[11px] text-text-muted mb-3">
-						Bookmark &amp; riwayat hanya tersimpan di browser ini. Simpan file backup kalau ingin pindah
-						perangkat atau membersihkan browser.
-					</p>
-					<div class="flex gap-2">
-						<button
-							onclick={handleExport}
-							class="brutal-press flex-1 bg-bg-main border-2 border-ink text-text-main py-2.5 font-bold text-xs hover:border-primary transition"
-							>DOWNLOAD BACKUP</button
-						>
-						<input
-							bind:this={fileInput}
-							type="file"
-							accept=".json"
-							onchange={handleImport}
-							class="hidden"
-							id="lib-import"
-						/>
-						<label
-							for="lib-import"
-							class="brutal-press flex-1 bg-bg-main border-2 border-ink text-text-main py-2.5 font-bold text-xs text-center cursor-pointer hover:border-primary transition"
-							>PULIHKAN BACKUP</label
-						>
-					</div>
-					{#if importMsg}
-						<p class="text-xs font-bold text-primary mt-2">{importMsg}</p>
-					{/if}
-				</div>
-			</div>
+				{#if notice}
+					<p class="mt-3 text-xs font-medium text-accent">{notice}</p>
+				{/if}
+			</section>
 		</div>
 
-		<div class="w-full lg:w-80 flex-shrink-0 flex flex-col gap-6">
-			<div class="sticky top-24 flex flex-col gap-6">
-				<div class="bg-bg-secondary p-4 shadow-brutal-sm">
-					<h3 class="font-bold text-text-main mb-4 flex items-center gap-2">
-						<svg class="w-5 h-5 text-red-hot" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"
-							/><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"
-							/></svg
-						>Top Popular</h3
-					>
-					<div class="flex flex-col gap-1 mb-6">
-						{#each popularList as item, i (item.id)}
+		<aside class="w-full lg:w-72 flex-shrink-0">
+			<div class="sticky top-24 flex flex-col gap-5">
+				<section class="card p-4">
+					<h2 class="flex items-center gap-2 text-sm font-semibold text-content mb-3">
+						<Icon name="trending-up" class="w-4 h-4 text-accent" />
+						Paling banyak ditonton
+					</h2>
+					<div class="flex flex-col gap-0.5">
+						{#each popular as item, i (item.id)}
 							<SidebarItem {item} rank={i + 1} />
 						{/each}
 					</div>
-				</div>
-				<div class="bg-bg-secondary p-4 shadow-brutal-sm">
-					<h3 class="font-bold text-text-main mb-4 flex items-center gap-2 text-sm">
-						<span class="text-red-500">❤</span> You May Like
-					</h3>
-					<div class="flex flex-col gap-1">
-						{#each randomList as item, i (item.id)}
+				</section>
+
+				<section class="card p-4">
+					<h2 class="flex items-center gap-2 text-sm font-semibold text-content mb-3">
+						<Icon name="film" class="w-4 h-4 text-accent" />
+						Mungkin kamu suka
+					</h2>
+					<div class="flex flex-col gap-0.5">
+						{#each suggestions as item, i (item.id)}
 							<SidebarItem {item} rank={i + 1} />
 						{/each}
 					</div>
-				</div>
+				</section>
 			</div>
-		</div>
+		</aside>
 	</div>
 </div>

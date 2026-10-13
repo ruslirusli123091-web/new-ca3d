@@ -1,19 +1,18 @@
-<footer class="bg-bg-secondary border-t border-ink mt-auto py-8">
-	<div
-		class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4"
-	>
-		<div class="flex items-center gap-2">
-			<img
-				src="/logo.png"
-				alt="Logo"
-				width="96"
-				height="32"
-				class="h-8 w-auto opacity-80 grayscale hover:grayscale-0 transition-all"
-			/>
+<footer class="border-t border-line mt-auto">
+	<div class="max-w-7xl mx-auto px-4 py-8">
+		<div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+			<div class="flex items-center gap-2.5">
+				<img src="/logo.png" alt="" width="96" height="28" class="h-7 w-auto opacity-70" />
+			</div>
+
+			<p class="text-xs text-content-subtle text-center sm:text-right">
+				&copy; {new Date().getFullYear()} ca3d.site — Semua hak dilindungi.
+			</p>
 		</div>
 
-		<div class="text-sm font-bold text-text-muted">
-			&copy; 2026 <span class="text-primary">ca3d.site</span>. Hak Cipta Dilindungi.
-		</div>
+		<p class="mt-4 text-[11px] leading-relaxed text-content-subtle max-w-2xl">
+			Situs ini tidak menyimpan berkas video apa pun. Semua konten disematkan dari layanan pihak ketiga
+			dan menjadi tanggung jawab penyedianya.
+		</p>
 	</div>
 </footer>

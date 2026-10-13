@@ -1,27 +1,32 @@
 <script lang="ts">
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 	import Header from '$components/layout/Header.svelte';
 	import Footer from '$components/layout/Footer.svelte';
 	import BackToTop from '$components/common/BackToTop.svelte';
 	import { search } from '$lib/stores/search';
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import type { Donghua } from '$lib/types';
 
-	let { data, children } = $props();
+	let { data, children }: { data: { donghua: Donghua[] }; children: import('svelte').Snippet } =
+		$props();
 
 	onMount(() => {
-		// Scroll to top on navigation, like the original ClientApp.
-		const unsub = page.subscribe(() => window.scrollTo(0, 0));
+		// Restore scroll position on back/forward, otherwise start at the top.
+		const unsub = page.subscribe(({ url }) => {
+			if (url.hash) return;
+			window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+		});
 		return unsub;
 	});
 </script>
 
-<div
-	class="public-site-root min-h-screen bg-bg-main text-text-main font-sans selection:bg-primary selection:text-white pb-0 transition-colors duration-300 flex flex-col"
->
+<div class="min-h-screen flex flex-col bg-surface-0 text-content">
 	<Header data={data.donghua} onSearch={(v) => search.set(v)} />
-	<main class="pt-16 flex-grow">
+
+	<main class="flex-1 pt-16">
 		{@render children()}
 	</main>
+
 	<Footer />
 	<BackToTop />
 </div>

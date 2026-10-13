@@ -1,33 +1,27 @@
 <script lang="ts">
-	import ProgressBar from './ProgressBar.svelte';
-
+	/**
+	 * Full-screen loading state.
+	 *
+	 * The previous version drew a pill-shaped progress bar with hard black
+	 * borders, a colour-shifting fill, a percentage readout and a label, then
+	 * forced a dark text colour on it. This is a single quiet indicator instead:
+	 * the page already shows skeletons while data loads, so a second animated
+	 * progress bar was redundant.
+	 */
 	interface Props {
 		label?: string;
-		durationMs?: number;
 	}
 
-	let { label = 'Memuat...', durationMs = 2600 }: Props = $props();
-
-	let progress = $state(0);
-
-	$effect(() => {
-		let raf: number;
-		const start = performance.now();
-		const duration = durationMs;
-
-		const tick = (now: number) => {
-			const t = Math.min(1, (now - start) / duration);
-			const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
-			progress = Math.round(eased * 100);
-			if (t < 1) raf = requestAnimationFrame(tick);
-		};
-
-		raf = requestAnimationFrame(tick);
-		return () => cancelAnimationFrame(raf);
-	});
+	let { label = 'Memuat' }: Props = $props();
 </script>
 
-<div class="loading-bar-pill flex flex-col items-center gap-3">
-	<ProgressBar currentValue={progress} color="lime" rounded="full" />
-	<span class="text-xs font-bold text-text-muted uppercase tracking-wider">{label}</span>
+<div class="flex flex-col items-center gap-4" role="status" aria-live="polite">
+	<div class="relative w-9 h-9">
+		<div class="absolute inset-0 rounded-full border-2 border-line"></div>
+		<div
+			class="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
+			style="border-top-color: var(--accent)"
+		></div>
+	</div>
+	<span class="text-xs font-medium text-content-subtle">{label}…</span>
 </div>

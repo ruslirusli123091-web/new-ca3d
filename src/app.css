@@ -3,192 +3,298 @@
 @tailwind utilities;
 
 /* =========================================================
-   NEUMORPHISM DESIGN TOKENS - 4 selectable themes
-   Each theme is one base surface color with a lighter and a
-   darker derivative used for the soft dual-tone shadows that
-   make elements look gently raised or pressed.
+   DESIGN TOKENS
+   ---------------------------------------------------------
+   One coherent system: flat surfaces, a single accent colour,
+   a consistent radius scale, and depth expressed as shadow.
+
+   The previous version mixed neumorphism (soft raised/inset
+   shadows) with brutalist elements (thick black borders and
+   hard offset shadows) and used six unrelated accent colours
+   on the same screen. That combination is what made the UI
+   look machine-generated, so it has been replaced with a
+   single restrained palette.
    ========================================================= */
 :root {
-	/* Slate (default) */
-	--bg-main: #1e2128;
-	--bg-secondary: #23262e;
-	--bg-card: #1e2128;
-	--bg-hover: #262a33;
-	--text-main: #eef0f5;
-	--text-muted: #9aa0ac;
-	--primary: #5b8def;
-	--primary-dark: #4a75d1;
-	--text-on-primary: #0c1117;
-	--neu-light: #282c36;
-	--neu-dark: #14161b;
-	--border-ink: rgba(255, 255, 255, 0.07);
+	/* Slate — default dark palette */
+	--surface-0: #0b0d10;
+	--surface-1: #12151a;
+	--surface-2: #191d24;
+	--surface-3: #222731;
+
+	--content-primary: #e8eaed;
+	--content-muted: #9aa1ad;
+	--content-subtle: #868e9c;
+
+	--accent: #5b8def;
+	--accent-hover: #6f9bf3;
+	--accent-soft: rgba(91, 141, 239, 0.14);
+	--accent-on: #0b0d10;
+
+	--line: rgba(255, 255, 255, 0.08);
+	--line-strong: rgba(255, 255, 255, 0.14);
+
+	/* Semantic colours, used only for status — never for decoration. */
+	--positive: #34d399;
+	--warning: #fbbf24;
+	--critical: #f87171;
+
+	color-scheme: dark;
 }
 
 [data-theme='ocean'] {
-	--bg-main: #122023;
-	--bg-secondary: #16262a;
-	--bg-card: #122023;
-	--bg-hover: #1a2c30;
-	--text-main: #e8f6f7;
-	--text-muted: #8fa9ac;
-	--primary: #22d3ee;
-	--primary-dark: #17b8d1;
-	--text-on-primary: #04181a;
-	--neu-light: #182a2e;
-	--neu-dark: #0a1315;
-	--border-ink: rgba(255, 255, 255, 0.07);
+	--surface-0: #071417;
+	--surface-1: #0c1c20;
+	--surface-2: #12262b;
+	--surface-3: #193037;
+	--content-primary: #e4f3f5;
+	--content-muted: #8fa9ad;
+	--content-subtle: #7d979c;
+	--accent: #22d3ee;
+	--accent-hover: #4fddf2;
+	--accent-soft: rgba(34, 211, 238, 0.14);
+	--accent-on: #04191c;
+	--line: rgba(255, 255, 255, 0.08);
+	--line-strong: rgba(255, 255, 255, 0.14);
 }
 
 [data-theme='forest'] {
-	--bg-main: #131d16;
-	--bg-secondary: #17231a;
-	--bg-card: #131d16;
-	--bg-hover: #1b291e;
-	--text-main: #e9f5eb;
-	--text-muted: #8fa993;
-	--primary: #4ade80;
-	--primary-dark: #34c765;
-	--text-on-primary: #06180a;
-	--neu-light: #1a2820;
-	--neu-dark: #0b120d;
-	--border-ink: rgba(255, 255, 255, 0.07);
+	--surface-0: #0a1210;
+	--surface-1: #0f1a16;
+	--surface-2: #15241e;
+	--surface-3: #1c2f28;
+	--content-primary: #e6f2eb;
+	--content-muted: #90a89b;
+	--content-subtle: #7e968a;
+	--accent: #34d399;
+	--accent-hover: #4ee0ab;
+	--accent-soft: rgba(52, 211, 153, 0.14);
+	--accent-on: #04160f;
+	--line: rgba(255, 255, 255, 0.08);
+	--line-strong: rgba(255, 255, 255, 0.14);
 }
 
 [data-theme='amber'] {
-	--bg-main: #1f1810;
-	--bg-secondary: #251d13;
-	--bg-card: #1f1810;
-	--bg-hover: #2c2216;
-	--text-main: #f7f0e6;
-	--text-muted: #ab9d87;
-	--primary: #fbbf24;
-	--primary-dark: #e0a812;
-	--text-on-primary: #1a1206;
-	--neu-light: #2a2116;
-	--neu-dark: #130f09;
-	--border-ink: rgba(255, 255, 255, 0.07);
+	--surface-0: #14100a;
+	--surface-1: #1c1710;
+	--surface-2: #262016;
+	--surface-3: #31291d;
+	--content-primary: #f5ede0;
+	--content-muted: #b0a189;
+	--content-subtle: #9a8d76;
+	--accent: #f0b429;
+	--accent-hover: #f5c451;
+	--accent-soft: rgba(240, 180, 41, 0.14);
+	--accent-on: #1a1206;
+	--line: rgba(255, 255, 255, 0.08);
+	--line-strong: rgba(255, 255, 255, 0.14);
 }
 
-/* Light-mode variants - same 4 accent colors, bright surface instead of dark */
+/* Light mode — same structure, inverted surfaces. */
 [data-theme='slate-light'] {
-	--bg-main: #eef1f6;
-	--bg-secondary: #e6e9f0;
-	--bg-card: #eef1f6;
-	--bg-hover: #e2e6ee;
-	--text-main: #232630;
-	--text-muted: #6b7180;
-	--primary: #3a5fc4;
-	--primary-dark: #2e4da3;
-	--text-on-primary: #ffffff;
-	--neu-light: #ffffff;
-	--neu-dark: #d3d8e2;
-	--border-ink: rgba(0, 0, 0, 0.06);
+	--surface-0: #ffffff;
+	--surface-1: #f7f8fa;
+	--surface-2: #eef0f4;
+	--surface-3: #e3e6ec;
+	--content-primary: #14171c;
+	--content-muted: #5a6272;
+	--content-subtle: #626a78;
+	--accent: #3b6fd4;
+	--accent-hover: #2f5fbb;
+	--accent-soft: rgba(59, 111, 212, 0.1);
+	--accent-on: #ffffff;
+	--line: rgba(0, 0, 0, 0.09);
+	--line-strong: rgba(0, 0, 0, 0.16);
+	color-scheme: light;
 }
+
 [data-theme='ocean-light'] {
-	--bg-main: #e6f4f5;
-	--bg-secondary: #dcedf0;
-	--bg-card: #e6f4f5;
-	--bg-hover: #d3e9ec;
-	--text-main: #0e2a2d;
-	--text-muted: #4f7377;
-	--primary: #0891a8;
-	--primary-dark: #077288;
-	--text-on-primary: #ffffff;
-	--neu-light: #ffffff;
-	--neu-dark: #c7dde0;
-	--border-ink: rgba(0, 0, 0, 0.06);
+	--surface-0: #ffffff;
+	--surface-1: #f4fafb;
+	--surface-2: #e6f3f5;
+	--surface-3: #d5e9ec;
+	--content-primary: #0c2126;
+	--content-muted: #4a6d74;
+	--content-subtle: #52707a;
+	--accent: #0e93ab;
+	--accent-hover: #0b7c90;
+	--accent-soft: rgba(14, 147, 171, 0.1);
+	--accent-on: #ffffff;
+	--line: rgba(0, 0, 0, 0.09);
+	--line-strong: rgba(0, 0, 0, 0.16);
+	color-scheme: light;
 }
+
 [data-theme='forest-light'] {
-	--bg-main: #e9f3ea;
-	--bg-secondary: #dfeee1;
-	--bg-card: #e9f3ea;
-	--bg-hover: #d3e8d6;
-	--text-main: #12291a;
-	--text-muted: #4d6e55;
-	--primary: #1f9d53;
-	--primary-dark: #187f43;
-	--text-on-primary: #ffffff;
-	--neu-light: #ffffff;
-	--neu-dark: #cbe0cd;
-	--border-ink: rgba(0, 0, 0, 0.06);
+	--surface-0: #ffffff;
+	--surface-1: #f5faf6;
+	--surface-2: #e8f4ea;
+	--surface-3: #d8eadc;
+	--content-primary: #10241a;
+	--content-muted: #4c6b58;
+	--content-subtle: #567260;
+	--accent: #1c8f4a;
+	--accent-hover: #167a3e;
+	--accent-soft: rgba(28, 143, 74, 0.1);
+	--accent-on: #ffffff;
+	--line: rgba(0, 0, 0, 0.09);
+	--line-strong: rgba(0, 0, 0, 0.16);
+	color-scheme: light;
 }
+
 [data-theme='amber-light'] {
-	--bg-main: #f7f0e3;
-	--bg-secondary: #f1e7d3;
-	--bg-card: #f7f0e3;
-	--bg-hover: #ecdfc4;
-	--text-main: #2b2013;
-	--text-muted: #71624a;
-	--primary: #b4790a;
-	--primary-dark: #93630a;
-	--text-on-primary: #ffffff;
-	--neu-light: #ffffff;
-	--neu-dark: #e3d5b8;
-	--border-ink: rgba(0, 0, 0, 0.06);
+	--surface-0: #ffffff;
+	--surface-1: #fdfaf3;
+	--surface-2: #f8f1e0;
+	--surface-3: #f0e5cc;
+	--content-primary: #261d0e;
+	--content-muted: #6b5c3f;
+	--content-subtle: #6f6247;
+	--accent: #b0740a;
+	--accent-hover: #96620a;
+	--accent-soft: rgba(176, 116, 10, 0.1);
+	--accent-on: #ffffff;
+	--line: rgba(0, 0, 0, 0.09);
+	--line-strong: rgba(0, 0, 0, 0.16);
+	color-scheme: light;
 }
 
-/* Admin Panel - its own dark neumorphic palette, independent of the
-   public site's theme picker (admin stays on one consistent look). */
-.admin-panel-root {
-	--admin-bg: #1b1e26;
-	--admin-bg-panel: #20232c;
-	--admin-border: rgba(255, 255, 255, 0.06);
-	--admin-neu-light: #262a34;
-	--admin-neu-dark: #121419;
-	--admin-text: #e7e9f0;
-	--admin-text-muted: #8b8f9e;
-	--admin-accent: #5b8def;
-}
-
-* {
+/* =========================================================
+   BASE
+   ========================================================= */
+*,
+*::before,
+*::after {
 	box-sizing: border-box;
 }
 
-body {
-	background-color: var(--bg-main);
-	color: var(--text-main);
-	-webkit-tap-highlight-color: transparent;
-	transition: background-color 0.3s ease, color 0.3s ease;
-	position: relative;
-	margin: 0;
-}
-/* Subtle dot-grid texture - public site only, admin panel stays plain */
-.public-site-root {
-	background-image: radial-gradient(
-		color-mix(in srgb, var(--border-ink) 8%, transparent) 1px,
-		transparent 1px
-	);
-	background-size: 28px 28px;
+html {
+	-webkit-text-size-adjust: 100%;
 }
 
-/* Bold, high-contrast focus state instead of soft browser glow */
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-	outline: 3px solid var(--primary);
+body {
+	margin: 0;
+	background-color: var(--surface-0);
+	color: var(--content-primary);
+	font-family: Inter, system-ui, -apple-system, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* Visible, consistent focus ring — required for keyboard accessibility. */
+:focus-visible {
+	outline: 2px solid var(--accent);
 	outline-offset: 2px;
+	border-radius: 4px;
 }
 
 ::selection {
-	background-color: var(--primary);
-	color: var(--text-on-primary);
+	background-color: var(--accent);
+	color: var(--accent-on);
 }
 
-/* Custom Utilities */
-.forced-landscape {
-	position: fixed !important;
-	top: 50% !important;
-	left: 50% !important;
-	width: 100vh !important;
-	height: 100vw !important;
-	z-index: 2147483647 !important;
-	transform: translate(-50%, -50%) rotate(90deg) !important;
-	transform-origin: center center !important;
+/* =========================================================
+   COMPONENT PRIMITIVES
+   Applied through classes so every screen uses the same shapes
+   instead of re-declaring borders and radii inline.
+   ========================================================= */
+@layer components {
+	/* Cards: one radius, one border, one elevation. */
+	.card {
+		@apply bg-surface-1 border border-line rounded-xl;
+	}
+
+	.card-interactive {
+		@apply card transition-colors duration-150 ease-smooth hover:border-line-strong hover:bg-surface-2;
+	}
+
+	/* Buttons: three variants only. */
+	.btn {
+		@apply inline-flex items-center justify-center gap-2 font-medium text-sm
+		       rounded-lg px-4 py-2.5 transition-colors duration-150 ease-smooth
+		       disabled:opacity-50 disabled:cursor-not-allowed select-none;
+	}
+
+	.btn-primary {
+		@apply btn bg-accent text-accent-on hover:bg-accent-hover;
+	}
+
+	.btn-secondary {
+		@apply btn bg-surface-2 text-content border border-line hover:bg-surface-3 hover:border-line-strong;
+	}
+
+	.btn-ghost {
+		@apply btn bg-transparent text-content-muted hover:text-content hover:bg-surface-2;
+	}
+
+	/* Icon button: fixed square, never an emoji. */
+	.btn-icon {
+		@apply inline-flex items-center justify-center w-9 h-9 rounded-lg
+		       text-content-muted transition-colors duration-150
+		       hover:text-content hover:bg-surface-2;
+	}
+
+	/* Inputs */
+	.input {
+		@apply w-full bg-surface-2 border border-line rounded-lg px-3.5 py-2.5
+		       text-sm text-content placeholder:text-content-subtle
+		       transition-colors duration-150
+		       focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent;
+	}
+
+	.label {
+		@apply block text-xs font-medium text-content-muted mb-1.5;
+	}
+
+	/* Section heading with a small accent rule. */
+	.section-title {
+		@apply flex items-center gap-2.5 font-display text-lg font-semibold text-content;
+	}
+	.section-title::before {
+		content: '';
+		@apply w-1 h-5 rounded-full bg-accent;
+	}
+
+	/* Status pills — semantic colour only. */
+	.badge {
+		@apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md
+		       text-[11px] font-semibold tracking-wide;
+	}
+	.badge-neutral {
+		@apply badge bg-surface-3 text-content-muted;
+	}
+	.badge-positive {
+		@apply badge;
+		background-color: color-mix(in srgb, var(--positive) 16%, transparent);
+		color: var(--positive);
+	}
+	.badge-warning {
+		@apply badge;
+		background-color: color-mix(in srgb, var(--warning) 16%, transparent);
+		color: var(--warning);
+	}
+	.badge-critical {
+		@apply badge;
+		background-color: color-mix(in srgb, var(--critical) 16%, transparent);
+		color: var(--critical);
+	}
+	.badge-accent {
+		@apply badge;
+		background-color: var(--accent-soft);
+		color: var(--accent);
+	}
 }
 
-/* Line Clamp Utility */
+/* =========================================================
+   UTILITIES
+   ========================================================= */
+.line-clamp-1 {
+	display: -webkit-box;
+	-webkit-line-clamp: 1;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
 .line-clamp-2 {
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
@@ -202,7 +308,6 @@ textarea:focus-visible {
 	overflow: hidden;
 }
 
-/* Hide scrollbar for horizontal chip/tab rows, keep it functional */
 .scrollbar-hide::-webkit-scrollbar {
 	display: none;
 }
@@ -211,282 +316,86 @@ textarea:focus-visible {
 	scrollbar-width: none;
 }
 
-/* Slim brutalist scrollbar for content panels */
-.custom-scroll::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
+/* Thin scrollbar that matches the surface palette. */
+.scroll-thin {
+	scrollbar-width: thin;
+	scrollbar-color: var(--line-strong) transparent;
 }
-.custom-scroll::-webkit-scrollbar-track {
+.scroll-thin::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-track {
 	background: transparent;
 }
-.custom-scroll::-webkit-scrollbar-thumb {
-	background-color: var(--border-ink);
-	border: 2px solid var(--bg-secondary);
+.scroll-thin::-webkit-scrollbar-thumb {
+	background-color: var(--line-strong);
+	border-radius: 3px;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+	background-color: var(--content-subtle);
 }
 
-/* ---------------------------------------------------------
-   Signature interaction: soft neumorphic press. Hover lifts
-   slightly, active presses in with an inset shadow.
-   --------------------------------------------------------- */
-.brutal-press {
-	transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.brutal-press:hover {
-	transform: translateY(-2px);
-}
-.brutal-press:active {
-	transform: translateY(0);
-	box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light) !important;
+/* Full-screen landscape player for mobile. */
+.forced-landscape {
+	position: fixed !important;
+	inset: 0 !important;
+	width: 100vh !important;
+	height: 100vw !important;
+	top: 50% !important;
+	left: 50% !important;
+	transform: translate(-50%, -50%) rotate(90deg) !important;
+	transform-origin: center !important;
+	z-index: 9999 !important;
 }
 
-/* Loading ProgressBar exceptions */
-.loading-bar-pill .rounded-full {
-	border-radius: 9999px !important;
-}
-.loading-bar-pill .bg-white {
-	background-color: var(--bg-secondary) !important;
-}
-.loading-bar-pill .border-black {
-	border-color: transparent !important;
-}
-.loading-bar-pill > div:first-child {
-	width: min(85vw, 380px) !important;
-	box-shadow: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light) !important;
-}
-.loading-bar-pill > div:first-child > div {
-	box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-}
-.loading-bar-pill h1 {
-	color: #16181c !important;
+/* =========================================================
+   ADMIN PANEL
+   The admin uses the same tokens as the public site, so the two
+   no longer look like separate products.
+   ========================================================= */
+.admin-shell {
+	background-color: var(--surface-0);
+	color: var(--content-primary);
 }
 
-/* Banner carousel dots stay round */
-.banner-dot {
-	border-radius: 9999px !important;
+.admin-nav-item {
+	@apply flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium
+	       text-content-muted transition-colors duration-150
+	       hover:bg-surface-2 hover:text-content;
+}
+.admin-nav-item[data-active='true'] {
+	@apply bg-accent-soft text-accent;
 }
 
-/* Fast, staggered card entrance for grids */
-@keyframes card-pop-in {
-	from {
-		opacity: 0;
-		transform: translateY(10px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+/* Tables */
+.admin-table {
+	@apply w-full text-sm text-left;
 }
-.stagger-fade-grid > * {
-	animation: card-pop-in 0.35s ease-out both;
+.admin-table thead th {
+	@apply px-4 py-3 text-xs font-semibold uppercase tracking-wider
+	       text-content-subtle border-b border-line;
 }
-.stagger-fade-grid > *:nth-child(1) {
-	animation-delay: 0ms;
+.admin-table tbody td {
+	@apply px-4 py-3 border-b border-line text-content-muted;
 }
-.stagger-fade-grid > *:nth-child(2) {
-	animation-delay: 30ms;
-}
-.stagger-fade-grid > *:nth-child(3) {
-	animation-delay: 60ms;
-}
-.stagger-fade-grid > *:nth-child(4) {
-	animation-delay: 90ms;
-}
-.stagger-fade-grid > *:nth-child(5) {
-	animation-delay: 120ms;
-}
-.stagger-fade-grid > *:nth-child(6) {
-	animation-delay: 150ms;
-}
-.stagger-fade-grid > *:nth-child(7) {
-	animation-delay: 180ms;
-}
-.stagger-fade-grid > *:nth-child(8) {
-	animation-delay: 210ms;
-}
-.stagger-fade-grid > *:nth-child(9) {
-	animation-delay: 240ms;
-}
-.stagger-fade-grid > *:nth-child(10) {
-	animation-delay: 270ms;
-}
-.stagger-fade-grid > *:nth-child(n + 11) {
-	animation-delay: 300ms;
+.admin-table tbody tr:hover td {
+	@apply bg-surface-2;
 }
 
+/* =========================================================
+   MOTION
+   Respect the user's reduced-motion preference. The old build
+   animated 30+ elements on every page load, which is both
+   distracting and a performance cost.
+   ========================================================= */
 @media (prefers-reduced-motion: reduce) {
-	.stagger-fade-grid > * {
-		animation: none;
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
 	}
-}
-
-/* Typewriter cursor */
-.typewriter-cursor {
-	display: inline-block;
-	margin-left: 2px;
-	animation: typewriter-blink 0.9s step-end infinite;
-}
-@keyframes typewriter-blink {
-	0%,
-	50% {
-		opacity: 1;
-	}
-	50.01%,
-	100% {
-		opacity: 0;
-	}
-}
-@media (prefers-reduced-motion: reduce) {
-	.typewriter-cursor {
-		animation: none;
-	}
-}
-
-/* Admin Panel rounding + palette */
-.admin-panel-root [class*='rounded'] {
-	border-radius: 14px !important;
-}
-.admin-panel-root .rounded-full {
-	border-radius: 9999px !important;
-}
-.admin-panel-root {
-	background-color: var(--admin-bg);
-	color: var(--admin-text);
-}
-.admin-panel-root .bg-slate-950,
-.admin-panel-root .bg-black {
-	background-color: var(--admin-bg) !important;
-}
-.admin-panel-root .bg-slate-900,
-.admin-panel-root .bg-slate-900\/50,
-.admin-panel-root .bg-slate-900\/90,
-.admin-panel-root .bg-slate-800,
-.admin-panel-root .bg-slate-800\/50,
-.admin-panel-root .bg-slate-700 {
-	background-color: var(--admin-bg-panel) !important;
-}
-.admin-panel-root .text-white,
-.admin-panel-root .text-slate-100,
-.admin-panel-root .text-slate-200 {
-	color: var(--admin-text) !important;
-}
-.admin-panel-root .text-slate-300,
-.admin-panel-root .text-slate-400,
-.admin-panel-root .text-slate-500 {
-	color: var(--admin-text-muted) !important;
-}
-.admin-panel-root .border-admin-ink,
-.admin-panel-root .border-slate-600,
-.admin-panel-root .border-slate-700,
-.admin-panel-root .border-slate-800 {
-	border-color: var(--admin-border) !important;
-}
-.admin-panel-root .bg-blue-600 {
-	background-color: var(--admin-accent) !important;
-}
-.admin-panel-root .hover\:bg-blue-500:hover,
-.admin-panel-root .hover\:bg-blue-600:hover {
-	filter: brightness(1.12);
-}
-.admin-panel-root .text-blue-400,
-.admin-panel-root .text-blue-500 {
-	color: var(--admin-accent) !important;
-}
-
-.admin-panel-root input[type='datetime-local'] {
-	color-scheme: dark;
-}
-
-/* ===========================================================
-   Admin Login screen - Neumorphism
-   =========================================================== */
-.admin-login-neu {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	min-height: 100vh;
-	width: 100%;
-	background: var(--admin-bg);
-	padding: 24px;
-}
-.admin-login-neu-card {
-	width: 100%;
-	max-width: 380px;
-	background: var(--admin-bg-panel);
-	border-radius: 24px;
-	box-shadow: 8px 8px 20px var(--admin-neu-dark), -8px -8px 20px var(--admin-neu-light);
-	padding: 36px 30px;
-	text-align: center;
-}
-.admin-login-neu-icon {
-	width: 64px;
-	height: 64px;
-	margin: 0 auto 18px;
-	border-radius: 9999px;
-	background: var(--admin-bg-panel);
-	box-shadow: 6px 6px 14px var(--admin-neu-dark), -6px -6px 14px var(--admin-neu-light);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-.admin-login-neu-title {
-	font-family: 'Space Grotesk', sans-serif;
-	font-weight: 700;
-	font-size: 1.6em;
-	color: var(--admin-text);
-	margin: 0 0 4px;
-}
-.admin-login-neu-subtitle {
-	font-size: 0.8em;
-	color: var(--admin-text-muted);
-	margin: 0 0 26px;
-}
-.admin-login-neu-form {
-	display: flex;
-	flex-direction: column;
-	gap: 18px;
-}
-.admin-login-neu-inputbx input {
-	width: 100%;
-	padding: 14px 20px;
-	background: var(--admin-bg-panel);
-	border: none;
-	border-radius: 14px;
-	box-shadow: inset 4px 4px 8px var(--admin-neu-dark), inset -4px -4px 8px var(--admin-neu-light);
-	font-size: 0.95em;
-	color: var(--admin-text);
-	outline: none;
-}
-.admin-login-neu-inputbx input::placeholder {
-	color: var(--admin-text-muted);
-}
-.admin-login-neu-submit {
-	width: 100%;
-	padding: 14px 20px;
-	background: var(--admin-bg-panel);
-	border: none;
-	border-radius: 14px;
-	box-shadow: 5px 5px 10px var(--admin-neu-dark), -5px -5px 10px var(--admin-neu-light);
-	font-weight: 700;
-	font-size: 0.9em;
-	letter-spacing: 0.5px;
-	color: var(--admin-accent);
-	cursor: pointer;
-	transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-.admin-login-neu-submit:active {
-	box-shadow: inset 4px 4px 8px var(--admin-neu-dark), inset -4px -4px 8px var(--admin-neu-light);
-	transform: translateY(1px);
-}
-.admin-login-neu-msg {
-	color: #ff6b6b;
-	font-size: 0.8em;
-	font-weight: 700;
-	margin-top: 16px;
-}
-
-/* Turnstile widget wrapper (secure admin/member auth) */
-.turnstile-slot {
-	display: flex;
-	justify-content: center;
-	min-height: 65px;
 }

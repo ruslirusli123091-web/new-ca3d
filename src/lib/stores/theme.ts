@@ -1,25 +1,23 @@
 import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
 
-export interface ThemeState {
-	color: string;
-	mode: string;
-}
+/**
+ * Theme = one accent colour + a light/dark mode. Both are stored locally and
+ * applied by setting `data-theme` on <html>, which swaps the CSS variables in
+ * app.css. Nothing here is decorative: each theme only changes the accent and
+ * the surface palette.
+ */
+export const THEMES = [
+	{ id: 'slate', label: 'Slate', swatch: '#5b8def' },
+	{ id: 'ocean', label: 'Ocean', swatch: '#22d3ee' },
+	{ id: 'forest', label: 'Forest', swatch: '#34d399' },
+	{ id: 'amber', label: 'Amber', swatch: '#f0b429' }
+] as const;
 
-function readInitial(): ThemeState {
-	if (!browser) return { color: 'slate', mode: 'dark' };
-	return {
-		color: localStorage.getItem('themeColor') || 'slate',
-		mode: localStorage.getItem('themeMode') || 'dark'
-	};
-}
+export const themeColor = writable<string>('slate');
+export const themeMode = writable<'dark' | 'light'>('dark');
 
-const initial = readInitial();
-
-export const themeColor = writable<string>(initial.color);
-export const themeMode = writable<string>(initial.mode);
-
-export function appliedTheme(color: string, mode: string): string {
+function applied(color: string, mode: string) {
 	return mode === 'light' ? `${color}-light` : color;
 }
 
@@ -27,9 +25,13 @@ function apply() {
 	if (!browser) return;
 	const color = get(themeColor);
 	const mode = get(themeMode);
-	document.documentElement.setAttribute('data-theme', appliedTheme(color, mode));
-	localStorage.setItem('themeColor', color);
-	localStorage.setItem('themeMode', mode);
+	document.documentElement.setAttribute('data-theme', applied(color, mode));
+	try {
+		localStorage.setItem('themeColor', color);
+		localStorage.setItem('themeMode', mode);
+	} catch {
+		/* storage blocked — the theme still applies for this session */
+	}
 }
 
 themeColor.subscribe(apply);
@@ -37,15 +39,14 @@ themeMode.subscribe(apply);
 
 export function applyStoredTheme() {
 	if (!browser) return;
-	const color = localStorage.getItem('themeColor') || 'slate';
-	const mode = localStorage.getItem('themeMode') || 'dark';
+	let color = 'slate';
+	let mode: 'dark' | 'light' = 'dark';
+	try {
+		color = localStorage.getItem('themeColor') || 'slate';
+		mode = localStorage.getItem('themeMode') === 'light' ? 'light' : 'dark';
+	} catch {
+		/* ignore */
+	}
 	themeColor.set(color);
 	themeMode.set(mode);
 }
-
-export const THEMES = [
-	{ id: 'slate', label: 'Slate', color: '#5b8def' },
-	{ id: 'ocean', label: 'Ocean', color: '#22d3ee' },
-	{ id: 'forest', label: 'Forest', color: '#4ade80' },
-	{ id: 'amber', label: 'Amber', color: '#fbbf24' }
-];

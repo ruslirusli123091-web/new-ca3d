@@ -1,878 +1,931 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import type { Donghua } from '$lib/types';
 	import { api } from '$lib/api';
 	import { getOptimizedImageUrl } from '$lib/utils/helpers';
+	import Icon from '$components/common/Icon.svelte';
 
-	interface ServerData {
+	interface ServerEntry {
 		name: string;
 		url: string;
 	}
-	interface EpisodeEditor {
+	interface EpisodeDraft {
 		ep: string;
-		servers: ServerData[];
+		servers: ServerEntry[];
 	}
 
-	let { data } = $props();
+	const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu', 'Random'] as const;
 
-	let isAuthenticated = $state(false);
-	let activeTab = $state<'anime' | 'backup'>('anime');
-	let editorMode = $state(false);
+	let { data }: { data: { meta?: Record<string, string> } } = $props();
 
-	// Auth state
-	let user = $state('');
-	let pass = $state('');
-	let msg = $state('');
+	// ---- auth ----
+	let authed = $state(false);
+	let checking = $state(true);
+	let username = $state('');
+	let password = $state('');
+	let authError = $state('');
+	let signingIn = $state(false);
 
-	// Data state
-	let donghuaList = $state<Donghua[]>([]);
-	let searchQuery = $state('');
+	// ---- navigation ----
+	let tab = $state<'catalogue' | 'backup'>('catalogue');
+	let editing = $state(false);
 
-	// Form state
-	let editId = $state('');
-	let title = $state('');
-	let type = $state('series');
-	let img = $state('');
-	let desc = $state('');
-	let status = $state('Ongoing');
-	// Manual rating entered by the admin (1.0 - 10.0). Empty = no rating shown.
-	let rating = $state<string>('');
-	let notifyMsg = $state('');
-	let sendNotification = $state(false);
-	let days = $state<string[]>([]);
-	let scheduleTime = $state('');
+	// ---- data ----
+	let catalogue = $state<Donghua[]>([]);
+	let query = $state('');
+	let toast = $state('');
+	let busy = $state(false);
 
-	let fileInputRef = $state<HTMLInputElement>();
-	let episodes = $state<EpisodeEditor[]>([]);
+	// ---- editor draft ----
+	let draftId = $state('');
+	let draftTitle = $state('');
+	let draftType = $state<'series' | 'movie'>('series');
+	let draftImage = $state('');
+	let draftSynopsis = $state('');
+	let draftStatus = $state('Ongoing');
+	let draftRating = $state('');
+	let draftDays = $state<string[]>([]);
+	let draftPublishAt = $state('');
+	let draftEpisodes = $state<EpisodeDraft[]>([]);
+	let notify = $state(false);
+	let notifyText = $state('');
 
-	async function loadAllData() {
-		donghuaList = await api.fetchDonghua();
-	}
+	let fileInput = $state<HTMLInputElement>();
 
 	onMount(async () => {
-		const ok = await api.adminVerify();
-		if (ok) {
-			isAuthenticated = true;
-			loadAllData();
-		}
+		authed = await api.adminVerify();
+		checking = false;
+		if (authed) await reload();
 	});
 
-	async function handleLogin(e: SubmitEvent) {
+	async function reload() {
+		catalogue = await api.fetchDonghua();
+	}
+
+	async function signIn(e: SubmitEvent) {
 		e.preventDefault();
-		msg = 'Memproses...';
+		authError = '';
+		signingIn = true;
 		try {
-			await api.adminLogin(user, pass);
-			isAuthenticated = true;
-			msg = '';
-			loadAllData();
+			await api.adminLogin(username, password);
+			authed = true;
+			password = '';
+			await reload();
 		} catch (err) {
-			msg = (err as Error).message || 'Username atau Password Salah!';
+			authError = (err as Error).message || 'Login gagal.';
+		} finally {
+			signingIn = false;
 		}
 	}
 
-	async function handleLogout() {
+	async function signOut() {
 		await api.adminLogout();
-		isAuthenticated = false;
+		authed = false;
+		catalogue = [];
 	}
 
-	// ---- Editor logic ----
-	function toggleDay(d: string) {
-		days = days.includes(d) ? days.filter((x) => x !== d) : [...days, d];
+	function flash(message: string) {
+		toast = message;
+		setTimeout(() => (toast = ''), 3200);
 	}
 
-	function addEpisode() {
-		episodes = [...episodes, { ep: '', servers: [{ name: 'HD', url: '' }] }];
-	}
-	function updateEpNum(idx: number, val: string) {
-		episodes[idx].ep = val;
-		episodes = episodes;
-	}
-	function addServerToEp(epIdx: number) {
-		episodes[epIdx].servers.push({ name: 'Server Baru', url: '' });
-		episodes = episodes;
-	}
-	function removeServerFromEp(epIdx: number, srvIdx: number) {
-		episodes[epIdx].servers = episodes[epIdx].servers.filter((_, i) => i !== srvIdx);
-		episodes = episodes;
-	}
-	function updateServerData(epIdx: number, srvIdx: number, field: 'name' | 'url', val: string) {
-		episodes[epIdx].servers[srvIdx][field] = val;
-		episodes = episodes;
-	}
-	function removeEpisode(idx: number) {
-		if (confirm('Hapus episode ini?')) episodes = episodes.filter((_, i) => i !== idx);
-	}
-	function moveEpisode(idx: number, dir: number) {
-		if ((dir === -1 && idx === 0) || (dir === 1 && idx === episodes.length - 1)) return;
-		const next = [...episodes];
-		const temp = next[idx];
-		next[idx] = next[idx + dir];
-		next[idx + dir] = temp;
-		episodes = next;
-	}
-
-	function clearForm() {
-		editId = '';
-		title = '';
-		type = 'series';
-		img = '';
-		desc = '';
-		status = 'Ongoing';
-		rating = '';
-		notifyMsg = '';
-		days = [];
-		scheduleTime = '';
-		episodes = [];
+	// ---- editor ----
+	function resetDraft() {
+		draftId = '';
+		draftTitle = '';
+		draftType = 'series';
+		draftImage = '';
+		draftSynopsis = '';
+		draftStatus = 'Ongoing';
+		draftRating = '';
+		draftDays = [];
+		draftPublishAt = '';
+		draftEpisodes = [];
+		notify = false;
+		notifyText = '';
 	}
 
 	function openEditor(item?: Donghua) {
+		resetDraft();
 		if (item) {
-			editId = item.id;
-			title = item.title;
-			type = item.type || 'series';
-			img = item.image;
-			desc = item.synopsis;
-			status = item.status || 'Ongoing';
-			rating = item.rating != null ? String(item.rating) : '';
-			days = item.day ? item.day.split(',') : [];
+			draftId = item.id;
+			draftTitle = item.title;
+			draftType = item.type === 'movie' ? 'movie' : 'series';
+			draftImage = item.image;
+			draftSynopsis = item.synopsis;
+			draftStatus = item.status || 'Ongoing';
+			draftRating = item.rating != null ? String(item.rating) : '';
+			draftDays = item.day ? item.day.split(',').filter(Boolean) : [];
 			if (item.scheduledTime) {
 				const d = new Date(item.scheduledTime);
 				d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-				scheduleTime = d.toISOString().slice(0, 16);
-			} else scheduleTime = '';
-
-			episodes = item.episodes.map((e) => {
-				let servers: ServerData[] = [];
-				if (e.url && e.url.includes('|')) {
-					servers = e.url
+				draftPublishAt = d.toISOString().slice(0, 16);
+			}
+			draftEpisodes = item.episodes.map((e) => {
+				const raw = e.url ?? '';
+				let servers: ServerEntry[] = [];
+				if (raw.includes('|')) {
+					servers = raw
 						.split('\n')
 						.map((line) => {
-							const parts = line.split('|');
-							if (parts.length >= 2)
-								return { name: parts[0].trim(), url: parts.slice(1).join('|').trim() };
-							return { name: 'Default', url: line.trim() };
+							const [name, ...rest] = line.split('|');
+							const url = rest.join('|').trim();
+							return url ? { name: name.trim() || 'Server', url } : null;
 						})
-						.filter((s) => s.url);
+						.filter((s): s is ServerEntry => s !== null);
 				}
-				if (servers.length === 0) servers = [{ name: 'Default', url: e.url || '' }];
+				if (servers.length === 0) servers = [{ name: 'Server', url: raw }];
 				return { ep: e.ep, servers };
 			});
-		} else clearForm();
-		editorMode = true;
+		}
+		editing = true;
 	}
 
-	async function handleSave() {
-		if (!title) return alert('Judul wajib diisi');
-		const ts = Date.now();
-		const newItemId = editId || ts.toString();
-		const scheduledTs = scheduleTime ? new Date(scheduleTime).getTime() : undefined;
+	function addEpisode() {
+		draftEpisodes = [...draftEpisodes, { ep: '', servers: [{ name: 'Server', url: '' }] }];
+	}
 
-		const formattedEpisodes = episodes.map((e) => {
-			const validServers = e.servers.filter((s) => s.url.trim() !== '');
-			let urlString = '';
-			if (validServers.length === 1 && validServers[0].name === 'Default') {
-				urlString = validServers[0].url;
-			} else {
-				urlString = validServers.map((s) => `${s.name.trim()}|${s.url.trim()}`).join('\n');
+	function removeEpisode(index: number) {
+		draftEpisodes = draftEpisodes.filter((_, i) => i !== index);
+	}
+
+	function moveEpisode(index: number, delta: number) {
+		const target = index + delta;
+		if (target < 0 || target >= draftEpisodes.length) return;
+		const next = [...draftEpisodes];
+		[next[index], next[target]] = [next[target], next[index]];
+		draftEpisodes = next;
+	}
+
+	function addServer(epIndex: number) {
+		draftEpisodes[epIndex].servers = [
+			...draftEpisodes[epIndex].servers,
+			{ name: 'Server', url: '' }
+		];
+	}
+
+	function removeServer(epIndex: number, serverIndex: number) {
+		draftEpisodes[epIndex].servers = draftEpisodes[epIndex].servers.filter(
+			(_, i) => i !== serverIndex
+		);
+	}
+
+	function toggleDay(day: string) {
+		draftDays = draftDays.includes(day)
+			? draftDays.filter((d) => d !== day)
+			: [...draftDays, day];
+	}
+
+	async function save() {
+		if (!draftTitle.trim()) {
+			flash('Judul wajib diisi.');
+			return;
+		}
+
+		const id = draftId || String(Date.now());
+		const previous = catalogue.find((d) => d.id === id);
+
+		const episodes = draftEpisodes
+			.map((e) => {
+				const usable = e.servers.filter((s) => s.url.trim());
+				// A single unnamed mirror is stored as a bare URL; several mirrors
+				// are stored as "Name|URL" lines.
+				const url =
+					usable.length === 1 && usable[0].name === 'Server'
+						? usable[0].url.trim()
+						: usable.map((s) => `${s.name.trim()}|${s.url.trim()}`).join('\n');
+				return { ep: e.ep.trim(), url, title: `Episode ${e.ep.trim()}`, video: url };
+			})
+			.filter((e) => e.ep);
+
+		const ratingNum = draftRating === '' ? undefined : Number(draftRating);
+
+		const entry: Donghua = {
+			id,
+			title: draftTitle.trim(),
+			type: draftType,
+			image: draftImage.trim(),
+			synopsis: draftSynopsis.trim(),
+			status: draftStatus,
+			rating: ratingNum != null && Number.isFinite(ratingNum) ? ratingNum : undefined,
+			day: draftDays.join(','),
+			scheduledTime: draftPublishAt ? new Date(draftPublishAt).getTime() : undefined,
+			episodes,
+			views: previous?.views ?? 0,
+			lastUpdated: Date.now()
+		};
+
+		const next = [...catalogue];
+		const index = next.findIndex((d) => d.id === id);
+		if (index > -1) next[index] = entry;
+		else next.push(entry);
+
+		busy = true;
+		try {
+			const res = await api.saveDonghua(next);
+			if (!res.ok) throw new Error('Simpan gagal.');
+
+			if (notify) {
+				await fetch('/api/notify', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						title: 'Update baru',
+						body: notifyText.trim() || `${entry.title} sudah tersedia.`,
+						url: `/synopsis/${id}`,
+						image: entry.image
+					})
+				}).catch(() => undefined);
 			}
-			return { ep: e.ep, url: urlString, title: `Episode ${e.ep}`, video: urlString };
-		});
 
-		const newItem: Donghua = {
-			id: newItemId,
-			title,
-			type: type as 'series' | 'movie',
-			image: img,
-			synopsis: desc,
-			status,
-			// Empty input means "no rating"; otherwise clamp to 1.0 - 10.0.
-			rating: rating === '' ? undefined : Math.min(10, Math.max(1, Number(rating) || 0)),
-			day: days.join(','),
-			scheduledTime: scheduledTs,
-			episodes: formattedEpisodes,
-			views: 0,
-			lastUpdated: ts
-		};
-
-		const newlist = [...donghuaList];
-		const idx = newlist.findIndex((x) => x.id === newItemId);
-		if (idx > -1) {
-			newItem.views = newlist[idx].views || 0;
-			newlist[idx] = newItem;
-		} else newlist.push(newItem);
-
-		try {
-			const res = await api.saveDonghua(newlist);
-			if (res.ok) {
-				if (sendNotification) {
-					try {
-						const notifBody = notifyMsg || `${title} Episode Baru Telah Rilis!`;
-						await fetch('/api/notify', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								title: 'Update Anime!',
-								body: notifBody,
-								url: `/synopsis/${newItemId}`,
-								image: img
-							})
-						});
-					} catch (err) {
-						console.error('Gagal kirim notifikasi', err);
-					}
-				}
-				await loadAllData();
-				editorMode = false;
-				alert('Data Berhasil Disimpan' + (sendNotification ? ' & Notifikasi Dikirim!' : '!'));
-			} else alert('Gagal menyimpan. Cek koneksi.');
-		} catch {
-			alert('Error saving');
+			await reload();
+			editing = false;
+			flash(notify ? 'Tersimpan dan notifikasi dikirim.' : 'Perubahan tersimpan.');
+		} catch (err) {
+			flash((err as Error).message);
+		} finally {
+			busy = false;
 		}
 	}
 
-	async function handleDelete(id: string) {
-		if (!confirm('Yakin ingin menghapus anime ini secara permanen?')) return;
+	async function remove(id: string, title: string) {
+		if (!confirm(`Hapus "${title}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+		busy = true;
 		try {
-			await api.deleteDonghua(id);
-			donghuaList = donghuaList.filter((x) => x.id !== id);
-		} catch {
-			alert('Error deleting');
+			const res = await api.deleteDonghua(id);
+			if (!res.ok) throw new Error('Hapus gagal.');
+			catalogue = catalogue.filter((d) => d.id !== id);
+			flash('Judul dihapus.');
+		} catch (err) {
+			flash((err as Error).message);
+		} finally {
+			busy = false;
 		}
 	}
 
-	// ---- Backup ----
-	function handleDownloadBackup() {
-		const backupData = {
-			timestamp: Date.now(),
-			generated: new Date().toISOString(),
-			donghua: donghuaList
-		};
-		const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+	// ---- backup ----
+	function downloadBackup() {
+		const blob = new Blob(
+			[JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), donghua: catalogue }, null, 2)],
+			{ type: 'application/json' }
+		);
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `ca3d_backup_${new Date().toISOString().slice(0, 10)}.json`;
+		a.download = `ca3d-backup-${new Date().toISOString().slice(0, 10)}.json`;
 		document.body.appendChild(a);
 		a.click();
-		document.body.removeChild(a);
+		a.remove();
 		URL.revokeObjectURL(url);
 	}
 
-	function handleRestoreBackup(e: Event) {
+	function restoreBackup(e: Event) {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file) return;
-		if (!confirm('PERINGATAN: Restore akan menimpa data Konten Anime yang ada saat ini. Lanjutkan?')) {
+		if (!confirm('Restore akan menimpa seluruh katalog saat ini. Lanjutkan?')) {
 			input.value = '';
 			return;
 		}
 		const reader = new FileReader();
 		reader.onload = async (ev) => {
 			try {
-				const json = JSON.parse(ev.target?.result as string);
-				if (json.donghua && Array.isArray(json.donghua)) {
-					msg = 'Sedang mengupload data...';
-					const res = await api.saveDonghua(json.donghua);
-					if (res.ok) {
-						alert('Restore Konten Anime Berhasil!');
-						await loadAllData();
-					} else alert('Gagal restore. Cek koneksi.');
-				} else alert('Format file backup tidak valid!');
-			} catch {
-				alert('Error parsing JSON file.');
+				const parsed = JSON.parse(String(ev.target?.result ?? ''));
+				if (!Array.isArray(parsed.donghua)) throw new Error('Format berkas tidak dikenali.');
+				busy = true;
+				const res = await api.saveDonghua(parsed.donghua);
+				if (!res.ok) throw new Error('Restore gagal.');
+				await reload();
+				flash(`Restore selesai: ${parsed.donghua.length} judul.`);
+			} catch (err) {
+				flash((err as Error).message);
+			} finally {
+				busy = false;
+				input.value = '';
 			}
-			input.value = '';
 		};
 		reader.readAsText(file);
 	}
 
-	const filteredDonghua = $derived(
-		donghuaList
-			.filter((d) => d.title.toLowerCase().includes(searchQuery.toLowerCase()))
+	const filtered = $derived(
+		catalogue
+			.filter((d) => d.title.toLowerCase().includes(query.toLowerCase()))
 			.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0))
 	);
+
+	const stats = $derived({
+		titles: catalogue.length,
+		episodes: catalogue.reduce((sum, d) => sum + (d.episodes?.length || 0), 0),
+		views: catalogue.reduce((sum, d) => sum + (d.views || 0), 0),
+		movies: catalogue.filter((d) => d.type === 'movie').length
+	});
 </script>
 
 <svelte:head>
-	<title>Admin Panel - CA3D</title>
+	<title>Panel Admin — CA3D</title>
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-{#if !isAuthenticated}
-	<div class="admin-panel-root admin-login-neu">
-		<div class="admin-login-neu-card">
-			<div class="admin-login-neu-icon">
-				<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--admin-accent)" stroke-width="2"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-					/></svg
-				>
+{#if checking}
+	<div class="min-h-screen flex items-center justify-center bg-surface-0">
+		<div
+			class="w-8 h-8 rounded-full border-2 border-line border-t-accent animate-spin"
+			role="status"
+			aria-label="Memeriksa sesi"
+		></div>
+	</div>
+{:else if !authed}
+	<!-- Sign in. The previous version used a decorative neumorphic card with
+	     inset shadow inputs and a floating icon badge. This is a plain form. -->
+	<div class="min-h-screen flex items-center justify-center bg-surface-0 px-4">
+		<form onsubmit={signIn} class="w-full max-w-sm card p-6">
+			<div class="mb-6">
+				<h1 class="font-display text-lg font-semibold text-content">Panel admin</h1>
+				<p class="mt-1 text-sm text-content-muted">Masuk untuk mengelola katalog.</p>
 			</div>
-			<h2 class="admin-login-neu-title">Admin<span style="color: var(--admin-accent)">Panel</span></h2>
-			<p class="admin-login-neu-subtitle">Masuk untuk mengelola konten website</p>
-			<form onsubmit={handleLogin} class="admin-login-neu-form">
-				<div class="admin-login-neu-inputbx">
-					<input bind:value={user} type="text" placeholder="Username" autocomplete="username" maxlength="32" />
-				</div>
-				<div class="admin-login-neu-inputbx">
+
+			<div class="space-y-4">
+				<div>
+					<label class="label" for="admin-user">Nama pengguna</label>
 					<input
-						bind:value={pass}
-						type="password"
-						placeholder="Password"
-						autocomplete="current-password"
-						maxlength="128"
+						id="admin-user"
+						bind:value={username}
+						type="text"
+						autocomplete="username"
+						maxlength="64"
+						required
+						class="input"
 					/>
 				</div>
-				<button type="submit" class="admin-login-neu-submit">LOGIN DASHBOARD</button>
-			</form>
-			{#if msg}<p class="admin-login-neu-msg">{msg}</p>{/if}
-		</div>
+
+				<div>
+					<label class="label" for="admin-pass">Kata sandi</label>
+					<input
+						id="admin-pass"
+						bind:value={password}
+						type="password"
+						autocomplete="current-password"
+						maxlength="128"
+						required
+						class="input"
+					/>
+				</div>
+
+				{#if authError}
+					<p class="flex items-start gap-2 text-xs" style="color: var(--critical)">
+						<Icon name="exclamation" class="w-4 h-4 flex-shrink-0 mt-px" />
+						{authError}
+					</p>
+				{/if}
+
+				<button type="submit" disabled={signingIn} class="btn-primary w-full">
+					{signingIn ? 'Memproses…' : 'Masuk'}
+				</button>
+			</div>
+
+			<p class="mt-5 text-[11px] leading-relaxed text-content-subtle">
+				Kredensial dibaca dari environment variable server, bukan dari database.
+			</p>
+		</form>
 	</div>
 {:else}
-	<div class="admin-panel-root flex h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden">
-		<!-- SIDEBAR DESKTOP -->
-		<aside class="w-64 bg-slate-900 border-r border-admin-ink flex-shrink-0 hidden md:flex flex-col z-20">
-			<div class="h-16 flex items-center justify-center px-6 border-b border-admin-ink bg-slate-900">
-				<img src="/logo.png" alt="CA3D CMS" class="h-10 w-auto" />
+	<div class="admin-shell min-h-screen flex flex-col">
+		<!-- Top bar -->
+		<header class="sticky top-0 z-30 border-b border-line bg-surface-0/90 backdrop-blur-md">
+			<div class="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
+				<a href="/" class="flex items-center gap-2 flex-shrink-0">
+					<img src="/logo.png" alt="" width="90" height="26" class="h-6 w-auto" />
+				</a>
+
+				<nav class="hidden sm:flex items-center gap-1" aria-label="Bagian admin">
+					<button
+						type="button"
+						onclick={() => {
+							tab = 'catalogue';
+							editing = false;
+						}}
+						class="admin-nav-item"
+						data-active={tab === 'catalogue'}
+					>
+						<Icon name="grid" class="w-4 h-4" />
+						Katalog
+					</button>
+					<button
+						type="button"
+						onclick={() => {
+							tab = 'backup';
+							editing = false;
+						}}
+						class="admin-nav-item"
+						data-active={tab === 'backup'}
+					>
+						<Icon name="database" class="w-4 h-4" />
+						Cadangan
+					</button>
+				</nav>
+
+				<div class="ml-auto flex items-center gap-2">
+					<a href="/" class="btn-ghost !text-xs hidden sm:inline-flex">
+						Lihat situs
+						<Icon name="arrow-right" class="w-3.5 h-3.5" />
+					</a>
+					<button type="button" onclick={signOut} class="btn-secondary !text-xs">
+						<Icon name="logout" class="w-3.5 h-3.5" />
+						Keluar
+					</button>
+				</div>
 			</div>
-			<nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+
+			<!-- Mobile tabs -->
+			<div class="sm:hidden border-t border-line px-3 py-2 flex gap-1">
 				<button
+					type="button"
 					onclick={() => {
-						activeTab = 'anime';
-						editorMode = false;
+						tab = 'catalogue';
+						editing = false;
 					}}
-					class={[
-						'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all',
-						activeTab === 'anime' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-					].join(' ')}
+					class="admin-nav-item justify-center"
+					data-active={tab === 'catalogue'}
 				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-						/></svg
-					>
-					Anime Manager
+					<Icon name="grid" class="w-4 h-4" />
+					Katalog
 				</button>
 				<button
-					onclick={() => (activeTab = 'backup')}
-					class={[
-						'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all',
-						activeTab === 'backup' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-					].join(' ')}
+					type="button"
+					onclick={() => {
+						tab = 'backup';
+						editing = false;
+					}}
+					class="admin-nav-item justify-center"
+					data-active={tab === 'backup'}
 				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
-						/></svg
-					>
-					Backup / Restore
-				</button>
-			</nav>
-			<div class="p-4 border-t border-admin-ink bg-slate-900">
-				<a href="/" class="block w-full text-center py-2 mb-2 text-xs font-bold text-slate-500 hover:text-blue-400"
-					>Lihat Website &rarr;</a
-				>
-				<button
-					onclick={handleLogout}
-					class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-900/20 hover:text-red-400 text-slate-300 py-3 rounded-lg text-xs font-bold transition border border-admin-ink"
-				>
-					Logout
+					<Icon name="database" class="w-4 h-4" />
+					Cadangan
 				</button>
 			</div>
-		</aside>
+		</header>
 
-		<!-- MAIN CONTENT -->
-		<main class="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-slate-950">
-			<header
-				class="h-16 bg-slate-900 border-b border-admin-ink flex items-center justify-between px-4 md:hidden flex-shrink-0 z-20"
-			>
-				<div class="flex flex-col justify-center">
-					<img src="/logo.png" alt="Logo" class="h-6 w-auto object-contain" />
-					<span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Panel Admin</span>
+		<main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+			{#if toast}
+				<div
+					class="mb-4 flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-sm text-content animate-fade-in"
+					role="status"
+				>
+					<Icon name="check" class="w-4 h-4 text-accent flex-shrink-0" />
+					{toast}
 				</div>
-				<div class="flex gap-2">
-					<button
-						onclick={() => (activeTab = 'anime')}
-						class={[
-							'p-2 rounded-lg border',
-							activeTab === 'anime' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-800 border-admin-ink text-slate-400'
-						].join(' ')}>A</button
-					>
-					<button
-						onclick={() => (activeTab = 'backup')}
-						class={[
-							'p-2 rounded-lg border',
-							activeTab === 'backup' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-800 border-admin-ink text-slate-400'
-						].join(' ')}>B</button
-					>
-					<button onclick={handleLogout} class="p-2 rounded-lg bg-slate-800 border border-admin-ink text-red-400"
-						>X</button
-					>
-				</div>
-			</header>
+			{/if}
 
-			<div class="flex-1 overflow-y-auto p-4 md:p-8 custom-scroll">
-				<!-- ANIME MANAGER TAB -->
-				{#if activeTab === 'anime'}
-					{#if !editorMode}
-						<div class="space-y-6 animate-fade-in pb-20">
-							<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-								<div class="bg-slate-900 p-4 rounded-xl border border-admin-ink">
-									<div class="text-slate-500 text-xs font-bold uppercase mb-1">Total Anime</div>
-									<div class="text-2xl font-black text-white">{donghuaList.length}</div>
-								</div>
-								<div class="bg-slate-900 p-4 rounded-xl border border-admin-ink">
-									<div class="text-slate-500 text-xs font-bold uppercase mb-1">Total Views</div>
-									<div class="text-2xl font-black text-blue-400">
-										{donghuaList.reduce((a, b) => a + (b.views || 0), 0).toLocaleString()}
-									</div>
-								</div>
-								<div class="bg-slate-900 p-4 rounded-xl border border-admin-ink">
-									<div class="text-slate-500 text-xs font-bold uppercase mb-1">Total Episode</div>
-									<div class="text-2xl font-black text-green-400">
-										{donghuaList.reduce((a, b) => a + (b.episodes?.length || 0), 0)}
-									</div>
-								</div>
-								<div class="bg-slate-900 p-4 rounded-xl border border-admin-ink">
-									<div class="text-slate-500 text-xs font-bold uppercase mb-1">Movie</div>
-									<div class="text-2xl font-black text-red-400">
-										{donghuaList.filter((d) => d.type === 'movie').length}
-									</div>
-								</div>
-							</div>
-
-							<div
-								class="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900 p-4 rounded-xl border border-admin-ink"
+			<!-- ============ CATALOGUE ============ -->
+			{#if tab === 'catalogue'}
+				{#if editing}
+					<!-- ---------- Editor ---------- -->
+					<div class="flex items-center justify-between mb-6">
+						<div class="flex items-center gap-3">
+							<button
+								type="button"
+								onclick={() => (editing = false)}
+								class="btn-secondary !px-2.5"
+								aria-label="Kembali"
 							>
-								<div class="relative w-full md:w-96">
-									<input
-										type="text"
-										placeholder="Cari judul anime..."
-										bind:value={searchQuery}
-										class="w-full bg-slate-950 border border-admin-ink rounded-lg py-2.5 pl-10 pr-4 text-sm text-white focus:border-blue-500 outline-none transition"
-									/>
-									<div class="absolute left-3 top-3 text-slate-500">
-										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-											/></svg
-										>
-									</div>
-								</div>
-								<div class="flex gap-2 w-full md:w-auto">
-									<button
-										onclick={loadAllData}
-										class="p-2.5 bg-slate-800 text-slate-400 rounded-lg hover:text-white border border-admin-ink transition"
-										title="Refresh Data">⟳</button
-									>
-									<button
-										onclick={() => openEditor()}
-										class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition"
-									>
-										+ Tambah Anime
-									</button>
-								</div>
-							</div>
-
-							<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-								{#each filteredDonghua as item (item.id)}
-									<div
-										class="group relative bg-slate-900 rounded-xl overflow-hidden border border-admin-ink transition-all"
-									>
-										<div class="relative aspect-[2/3] overflow-hidden rounded-poster bg-slate-950">
-											<img
-												src={getOptimizedImageUrl(item.image, 300)}
-												alt={item.title}
-												class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-												loading="lazy"
-											/>
-											<div class="absolute top-2 left-2 z-10 flex flex-col gap-1">
-												<span
-													class={[
-														'px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider',
-														item.type === 'movie' ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
-													].join(' ')}
-												>
-													{item.type || 'SERIES'}
-												</span>
-											</div>
-											<div class="absolute top-2 right-2 z-10">
-												<span
-													class="bg-slate-900 text-white border border-admin-ink px-2 py-1 rounded text-[10px] font-bold"
-												>
-													{item.episodes?.length || 0} EPS
-												</span>
-											</div>
-											<div
-												class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3"
-											>
-												<button
-													onclick={() => openEditor(item)}
-													class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-full text-xs font-bold"
-													>Edit</button
-												>
-												<button
-													onclick={() => handleDelete(item.id)}
-													class="bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded-full text-xs font-bold"
-													>Hapus</button
-												>
-											</div>
-										</div>
-										<div class="p-3">
-											<h3
-												class="font-bold text-slate-200 text-sm leading-tight line-clamp-2 mb-2 h-9"
-												title={item.title}
-											>
-												{item.title}
-											</h3>
-											<div class="flex justify-between items-center text-[10px] text-slate-500 font-medium">
-												<span>👁 {item.views || 0}</span>
-												<span>{item.day || '?'}</span>
-											</div>
-										</div>
-									</div>
-								{/each}
-							</div>
-
-							{#if filteredDonghua.length === 0}
-								<div class="text-center py-20 text-slate-500 italic border-2 border-dashed border-admin-ink rounded-xl">
-									Tidak ada anime yang ditemukan.
-								</div>
-							{/if}
+								<Icon name="arrow-left" class="w-4 h-4" />
+							</button>
+							<h1 class="font-display text-lg font-semibold text-content">
+								{draftId ? 'Ubah judul' : 'Judul baru'}
+							</h1>
 						</div>
-					{:else}
-						<!-- EDITOR MODE -->
-						<div class="animate-fade-in pb-40">
-							<div class="border-b border-admin-ink pb-4 mb-6 pt-2 flex items-center justify-between">
-								<div class="flex items-center gap-3">
-									<button
-										onclick={() => (editorMode = false)}
-										class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-admin-ink transition font-bold text-sm"
-									>
-										← Kembali
-									</button>
-									<h2 class="text-xl font-bold text-white hidden md:block">
-										{editId ? 'Edit Anime' : 'Tambah Anime Baru'}
-									</h2>
+						<button type="button" onclick={save} disabled={busy} class="btn-primary">
+							<Icon name="check" class="w-4 h-4" />
+							{busy ? 'Menyimpan…' : 'Simpan'}
+						</button>
+					</div>
+
+					<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-24">
+						<!-- Column 1: artwork + meta -->
+						<div class="space-y-5">
+							<section class="card p-4">
+								<h2 class="label">Poster</h2>
+								<div
+									class="aspect-[2/3] rounded-lg overflow-hidden bg-surface-2 border border-line mb-3"
+								>
+									{#if draftImage}
+										<img
+											src={getOptimizedImageUrl(draftImage, 300)}
+											alt="Pratinjau poster"
+											class="w-full h-full object-cover"
+										/>
+									{:else}
+										<div class="w-full h-full flex flex-col items-center justify-center gap-2 text-content-subtle">
+											<Icon name="image" class="w-6 h-6" />
+											<span class="text-xs">Belum ada gambar</span>
+										</div>
+									{/if}
 								</div>
+								<label class="label" for="ed-image">URL gambar</label>
+								<input
+									id="ed-image"
+									bind:value={draftImage}
+									type="text"
+									placeholder="https://…"
+									class="input"
+								/>
+							</section>
+
+							<section class="card p-4 space-y-4">
+								<div>
+									<label class="label" for="ed-type">Tipe</label>
+									<select id="ed-type" bind:value={draftType} class="input">
+										<option value="series">Series</option>
+										<option value="movie">Movie</option>
+									</select>
+								</div>
+
+								<div>
+									<label class="label" for="ed-status">Status</label>
+									<select id="ed-status" bind:value={draftStatus} class="input">
+										<option value="Ongoing">Ongoing</option>
+										<option value="Completed">Completed</option>
+										<option value="Dropped">Dropped</option>
+									</select>
+								</div>
+
+								<div>
+									<label class="label" for="ed-rating">Rating manual (1–10)</label>
+									<div class="flex gap-2">
+										<input
+											id="ed-rating"
+											bind:value={draftRating}
+											type="number"
+											min="1"
+											max="10"
+											step="0.1"
+											placeholder="8.5"
+											class="input"
+										/>
+										<button
+											type="button"
+											onclick={() => (draftRating = '')}
+											class="btn-secondary !px-3 flex-shrink-0"
+											title="Kosongkan rating"
+										>
+											<Icon name="close" class="w-4 h-4" />
+										</button>
+									</div>
+									<p class="mt-1.5 text-[11px] text-content-subtle">
+										Diisi manual. Kosongkan bila belum ada rating.
+									</p>
+								</div>
+
+								<div>
+									<span class="label">Hari tayang</span>
+									<div class="flex flex-wrap gap-1.5">
+										{#each DAYS as day (day)}
+											<button
+												type="button"
+												onclick={() => toggleDay(day)}
+												class="px-2.5 py-1.5 rounded-md text-[11px] font-medium border transition-colors
+												       {draftDays.includes(day)
+													? 'bg-accent text-accent-on border-accent'
+													: 'bg-surface-2 text-content-muted border-line hover:text-content'}"
+												aria-pressed={draftDays.includes(day)}
+											>
+												{day}
+											</button>
+										{/each}
+									</div>
+								</div>
+
+								<div>
+									<label class="label" for="ed-publish">Jadwalkan tayang</label>
+									<input
+										id="ed-publish"
+										bind:value={draftPublishAt}
+										type="datetime-local"
+										class="input"
+									/>
+									<p class="mt-1.5 text-[11px] text-content-subtle">
+										Kosongkan untuk langsung tayang.
+									</p>
+								</div>
+							</section>
+						</div>
+
+						<!-- Column 2: text content -->
+						<div class="space-y-5">
+							<section class="card p-4">
+								<label class="label" for="ed-title">Judul</label>
+								<input id="ed-title" bind:value={draftTitle} type="text" class="input" />
+							</section>
+
+							<section class="card p-4">
+								<label class="label" for="ed-synopsis">Sinopsis</label>
+								<textarea id="ed-synopsis" bind:value={draftSynopsis} rows="14" class="input resize-y"
+								></textarea>
+							</section>
+
+							<section class="card p-4">
+								<label class="flex items-center gap-2.5 cursor-pointer">
+									<input
+										type="checkbox"
+										bind:checked={notify}
+										class="w-4 h-4 rounded border-line bg-surface-2 accent-[var(--accent)]"
+									/>
+									<span class="text-sm text-content">Kirim notifikasi setelah simpan</span>
+								</label>
+								{#if notify}
+									<textarea
+										bind:value={notifyText}
+										rows="2"
+										placeholder="Pesan notifikasi (opsional)"
+										class="input mt-3 resize-y"
+									></textarea>
+								{/if}
+							</section>
+						</div>
+
+						<!-- Column 3: episodes -->
+						<div class="space-y-3">
+							<div class="flex items-center justify-between">
+								<h2 class="text-sm font-semibold text-content">
+									Episode <span class="text-content-subtle tabular-nums">({draftEpisodes.length})</span>
+								</h2>
+								<button type="button" onclick={addEpisode} class="btn-secondary !text-xs !py-1.5">
+									<Icon name="plus" class="w-3.5 h-3.5" />
+									Tambah
+								</button>
 							</div>
 
-							<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-								<div class="space-y-6 order-2 lg:order-none">
-									<div class="bg-slate-900 p-5 rounded-xl border border-admin-ink">
-										<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-img"
-											>Poster Preview</label
-										>
-										<div
-											class="aspect-[2/3] bg-slate-950 rounded-poster border-2 border-dashed border-admin-ink flex items-center justify-center overflow-hidden mb-4"
-										>
-											{#if img}
-												<img src={getOptimizedImageUrl(img, 300)} alt="Preview" class="w-full h-full object-cover" />
-											{:else}
-												<span class="text-slate-600 text-xs">No Image URL</span>
-											{/if}
-										</div>
-										<input
-											id="ed-img"
-											bind:value={img}
-											type="text"
-											placeholder="Paste URL Gambar disini..."
-											class="w-full bg-slate-950 border border-admin-ink rounded-lg p-3 text-sm text-white focus:border-blue-500 outline-none"
-										/>
-									</div>
-									<div class="bg-slate-900 p-5 rounded-xl border border-admin-ink space-y-5">
-										<div class="grid grid-cols-2 gap-4">
-											<div>
-												<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-type"
-													>Tipe Anime</label
-												>
-												<select
-													id="ed-type"
-													bind:value={type}
-													class="w-full bg-slate-950 border border-admin-ink rounded-lg p-3 text-sm text-white outline-none"
-												>
-													<option value="series">Series</option>
-													<option value="movie">Movie</option>
-												</select>
-											</div>
-											<div>
-												<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-status"
-													>Status</label
-												>
-												<select
-													id="ed-status"
-													bind:value={status}
-													class="w-full bg-slate-950 border border-admin-ink rounded-lg p-3 text-sm text-white outline-none"
-												>
-													<option value="Ongoing">Ongoing</option>
-													<option value="Completed">Completed</option>
-													<option value="Dropped">Dropped</option>
-												</select>
-											</div>
-										</div>
-										<div>
-											<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-rating"
-												>Rating (Manual)</label
-											>
-											<div class="flex items-center gap-3">
-												<input
-													id="ed-rating"
-													bind:value={rating}
-													type="number"
-													min="1"
-													max="10"
-													step="0.1"
-													placeholder="Contoh: 8.5"
-													class="flex-1 bg-slate-950 border border-admin-ink rounded-lg p-3 text-sm text-white outline-none"
-												/>
+							<div class="space-y-2.5 max-h-[620px] overflow-y-auto scroll-thin pr-1">
+								{#each [...draftEpisodes].map((e, i) => ({ e, i })).reverse() as { e, i } (i)}
+									<div class="card p-3">
+										<div class="flex items-center gap-2 mb-2.5">
+											<div class="flex flex-col gap-0.5">
 												<button
 													type="button"
-													onclick={() => (rating = '')}
-													class="text-xs font-bold text-slate-500 hover:text-red-400 px-3 py-3 border border-admin-ink rounded-lg transition"
-													title="Kosongkan rating">Hapus</button
+													onclick={() => moveEpisode(i, -1)}
+													disabled={i === 0}
+													class="text-content-subtle hover:text-content disabled:opacity-30"
+													aria-label="Naikkan"
 												>
+													<Icon name="chevron-up" class="w-3 h-3" />
+												</button>
+												<button
+													type="button"
+													onclick={() => moveEpisode(i, 1)}
+													disabled={i === draftEpisodes.length - 1}
+													class="text-content-subtle hover:text-content disabled:opacity-30"
+													aria-label="Turunkan"
+												>
+													<Icon name="chevron-down" class="w-3 h-3" />
+												</button>
 											</div>
-											<p class="text-[10px] text-slate-500 mt-1">
-												Diisi manual oleh admin (1.0 - 10.0). Kosongkan bila belum ada rating.
-											</p>
-										</div>
-										<div>
-										<span class="block text-xs font-bold text-slate-400 uppercase mb-2">Jadwal Tayang</span>
-											<div class="grid grid-cols-4 gap-2">
-												{#each ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu', 'Random'] as d (d)}
-													<button
-														onclick={() => toggleDay(d)}
-														class={[
-															'px-1 py-2 rounded text-[10px] font-bold border transition',
-															days.includes(d) ? 'bg-blue-600 text-white' : 'bg-slate-950 text-slate-500'
-														].join(' ')}>{d}</button
-													>
-												{/each}
-											</div>
-										</div>
-										<div>
-											<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-sched"
-												>Auto Publish</label
-											>
-											<input
-												id="ed-sched"
-												bind:value={scheduleTime}
-												type="datetime-local"
-												class="w-full bg-slate-950 border border-admin-ink rounded-lg p-3 text-xs text-white outline-none"
-											/>
-										</div>
-									</div>
-								</div>
 
-								<div class="space-y-6 order-3 lg:order-none">
-									<div class="bg-slate-900 p-5 rounded-xl border border-admin-ink space-y-5">
-										<div>
-											<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-title"
-												>Judul Anime</label
-											>
+											<label class="sr-only" for={`ep-${i}`}>Nomor episode</label>
 											<input
-												id="ed-title"
-												bind:value={title}
+												id={`ep-${i}`}
+												bind:value={e.ep}
 												type="text"
-												class="w-full bg-slate-950 border border-admin-ink rounded-lg p-3 text-sm text-white outline-none font-bold"
+												placeholder="No."
+												class="input !w-16 !py-1.5 !px-2 !text-center !text-sm"
 											/>
-										</div>
-										<div>
-											<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-desc"
-												>Sinopsis</label
-											>
-											<textarea
-												id="ed-desc"
-												bind:value={desc}
-												rows="12"
-												class="w-full bg-slate-950 border border-admin-ink rounded-lg p-3 text-sm text-white outline-none"
-											></textarea>
-										</div>
-										<div>
-											<label class="block text-xs font-bold text-slate-400 uppercase mb-2" for="ed-notif"
-												>Pesan Notifikasi</label
-											>
-											<textarea
-												id="ed-notif"
-												bind:value={notifyMsg}
-												rows="2"
-												class="w-full bg-slate-950 border border-admin-ink rounded-lg p-3 text-sm text-white outline-none"
-											></textarea>
-										</div>
-									</div>
-								</div>
 
-								<div class="flex flex-col h-auto lg:h-[calc(100vh-140px)] order-1 lg:order-none">
-									<div
-										class="bg-slate-900 rounded-xl border border-admin-ink flex flex-col h-full overflow-hidden"
-									>
-										<div class="p-4 bg-slate-800/50 border-b border-admin-ink flex justify-between items-center">
-											<h3 class="font-bold text-white text-sm uppercase">Daftar Episode</h3>
+											<div class="flex-1"></div>
+
 											<button
-												onclick={addEpisode}
-												class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-bold transition"
-												>+ Tambah EPS</button
+												type="button"
+												onclick={() => removeEpisode(i)}
+												class="btn-icon !w-7 !h-7"
+												aria-label="Hapus episode"
+												style="color: var(--critical)"
 											>
+												<Icon name="trash" class="w-3.5 h-3.5" />
+											</button>
 										</div>
-										<div
-											class="flex-1 overflow-y-auto p-3 space-y-3 custom-scroll bg-slate-900/50 max-h-[600px] lg:max-h-none"
-										>
-											{#each [...episodes.map((ep, idx) => ({ ep, idx }))].reverse() as { ep, idx } (idx)}
-												<div class="flex flex-col gap-2 bg-slate-950 p-3 border-2 border-admin-ink rounded-lg">
-													<div class="flex items-center gap-2 mb-2">
-														<div class="flex flex-col gap-0.5">
-															<button
-																onclick={() => moveEpisode(idx, -1)}
-																class="bg-slate-800 text-slate-500 rounded px-1 py-0.5 text-[10px]">▲</button
-															>
-															<button
-																onclick={() => moveEpisode(idx, 1)}
-																class="bg-slate-800 text-slate-500 rounded px-1 py-0.5 text-[10px]">▼</button
-															>
-														</div>
-														<span class="text-xs font-bold text-slate-500">EP:</span>
-														<input
-															value={ep.ep}
-															oninput={(e) => updateEpNum(idx, e.currentTarget.value)}
-															placeholder="No"
-															class="w-16 bg-slate-900 border border-admin-ink text-sm p-1.5 text-center text-white rounded outline-none font-bold"
-														/>
-														<div class="flex-1"></div>
+
+										<div class="space-y-1.5">
+											{#each e.servers as server, si (si)}
+												<div class="flex gap-1.5">
+													<label class="sr-only" for={`srv-name-${i}-${si}`}>Nama server</label>
+													<input
+														id={`srv-name-${i}-${si}`}
+														bind:value={server.name}
+														type="text"
+														placeholder="Server"
+														class="input !w-24 !py-1.5 !px-2 !text-xs"
+													/>
+													<label class="sr-only" for={`srv-url-${i}-${si}`}>URL server</label>
+													<input
+														id={`srv-url-${i}-${si}`}
+														bind:value={server.url}
+														type="text"
+														placeholder="https://…"
+														class="input !py-1.5 !px-2 !text-xs flex-1 min-w-0"
+													/>
+													{#if e.servers.length > 1}
 														<button
-															onclick={() => removeEpisode(idx)}
-															class="text-slate-600 hover:text-red-500 p-1.5">✕</button
+															type="button"
+															onclick={() => removeServer(i, si)}
+															class="btn-icon !w-7 !h-7 flex-shrink-0"
+															aria-label="Hapus server"
 														>
-													</div>
-													<div class="space-y-2">
-														{#each ep.servers as srv, srvIdx (srvIdx)}
-															<div class="flex gap-2 items-center">
-																<input
-																	value={srv.name}
-																	oninput={(e) => updateServerData(idx, srvIdx, 'name', e.currentTarget.value)}
-																	placeholder="Server"
-																	class="w-1/3 bg-slate-900 border border-admin-ink text-xs p-2 text-white rounded outline-none"
-																/>
-																<input
-																	value={srv.url}
-																	oninput={(e) => updateServerData(idx, srvIdx, 'url', e.currentTarget.value)}
-																	placeholder="URL"
-																	class="flex-1 bg-slate-900 border border-admin-ink text-xs p-2 text-slate-300 rounded outline-none font-mono"
-																/>
-																{#if ep.servers.length > 1}
-																	<button
-																		onclick={() => removeServerFromEp(idx, srvIdx)}
-																		class="text-slate-600 hover:text-red-500 p-1">✕</button
-																	>
-																{/if}
-															</div>
-														{/each}
-													</div>
-													<button
-														onclick={() => addServerToEp(idx)}
-														class="mt-1 w-full py-1.5 border border-dashed border-admin-ink rounded text-[10px] text-slate-500 hover:text-blue-400"
-														>+ Tambah Server</button
-													>
+															<Icon name="close" class="w-3 h-3" />
+														</button>
+													{/if}
 												</div>
 											{/each}
 										</div>
-									</div>
-								</div>
-							</div>
 
-							<div
-								class="fixed bottom-0 left-0 w-full bg-slate-900 border-t border-admin-ink p-4 z-50 flex flex-col items-center justify-center gap-3"
-							>
-								<label
-									class="flex items-center gap-2 cursor-pointer select-none bg-slate-950 p-3 rounded-lg border border-admin-ink w-full max-w-md justify-center"
-								>
-									<input
-										type="checkbox"
-										bind:checked={sendNotification}
-										class="w-4 h-4 rounded border-admin-ink text-blue-600 bg-slate-900"
-									/>
-									<span class="text-xs font-bold text-slate-300">Kirim Notifikasi ke User?</span>
-								</label>
-								<button
-									onclick={handleSave}
-									class="w-full max-w-md bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-lg flex items-center justify-center gap-2"
-									>SIMPAN SEMUA DATA</button
-								>
+										<button
+											type="button"
+											onclick={() => addServer(i)}
+											class="mt-2 w-full py-1.5 rounded-md border border-dashed border-line
+											       text-[11px] text-content-subtle hover:text-accent hover:border-accent
+											       transition-colors"
+										>
+											+ Tambah server
+										</button>
+									</div>
+								{/each}
+
+								{#if draftEpisodes.length === 0}
+									<div class="card p-6 text-center text-xs text-content-subtle">
+										Belum ada episode.
+									</div>
+								{/if}
 							</div>
+						</div>
+					</div>
+				{:else}
+					<!-- ---------- Catalogue list ---------- -->
+					<div class="flex items-center justify-between mb-6">
+						<h1 class="font-display text-lg font-semibold text-content">Katalog</h1>
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								onclick={reload}
+								class="btn-secondary !px-2.5"
+								aria-label="Muat ulang"
+							>
+								<Icon name="refresh" class="w-4 h-4" />
+							</button>
+							<button type="button" onclick={() => openEditor()} class="btn-primary">
+								<Icon name="plus" class="w-4 h-4" />
+								Judul baru
+							</button>
+						</div>
+					</div>
+
+					<!-- Stats -->
+					<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+						{#each [{ label: 'Judul', value: stats.titles, icon: 'grid' }, { label: 'Episode', value: stats.episodes, icon: 'list' }, { label: 'Movie', value: stats.movies, icon: 'film' }, { label: 'Total tayangan', value: stats.views, icon: 'eye' }] as s (s.label)}
+							<div class="card p-3.5">
+								<div class="flex items-center gap-2 text-content-subtle mb-1.5">
+									<Icon name={s.icon as 'grid'} class="w-3.5 h-3.5" />
+									<span class="text-[11px] font-medium uppercase tracking-wide">{s.label}</span>
+								</div>
+								<p class="text-xl font-semibold text-content tabular-nums">
+									{s.value.toLocaleString('id-ID')}
+								</p>
+							</div>
+						{/each}
+					</div>
+
+					<!-- Search -->
+					<div class="relative mb-5 max-w-sm">
+						<Icon
+							name="search"
+							class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-content-subtle pointer-events-none"
+						/>
+						<input
+							type="search"
+							bind:value={query}
+							placeholder="Cari judul…"
+							aria-label="Cari judul"
+							class="input !pl-9"
+						/>
+					</div>
+
+					{#if filtered.length === 0}
+						<div class="card p-12 text-center">
+							<Icon name="inbox" class="w-8 h-8 mx-auto text-content-subtle mb-3" />
+							<p class="text-sm text-content-muted">
+								{query ? 'Tidak ada judul yang cocok.' : 'Katalog masih kosong.'}
+							</p>
+						</div>
+					{:else}
+						<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+							{#each filtered as item (item.id)}
+								<article class="card overflow-hidden group">
+									<div class="relative aspect-[2/3] bg-surface-2">
+										<img
+											src={getOptimizedImageUrl(item.image, 300)}
+											alt=""
+											class="w-full h-full object-cover"
+											loading="lazy"
+										/>
+
+										<!-- Actions appear on hover/focus so the grid stays readable. -->
+										<div
+											class="absolute inset-0 bg-surface-0/80 opacity-0 group-hover:opacity-100
+											       focus-within:opacity-100 transition-opacity flex flex-col
+											       items-center justify-center gap-2"
+										>
+											<button
+												type="button"
+												onclick={() => openEditor(item)}
+												class="btn-secondary !text-xs !py-1.5"
+											>
+												<Icon name="edit" class="w-3.5 h-3.5" />
+												Ubah
+											</button>
+											<button
+												type="button"
+												onclick={() => remove(item.id, item.title)}
+												class="btn-secondary !text-xs !py-1.5"
+												style="color: var(--critical)"
+											>
+												<Icon name="trash" class="w-3.5 h-3.5" />
+												Hapus
+											</button>
+										</div>
+
+										{#if item.scheduledTime && item.scheduledTime > Date.now()}
+											<span class="absolute top-2 left-2 badge-warning">Terjadwal</span>
+										{/if}
+									</div>
+
+									<div class="p-2.5">
+										<h3 class="text-[13px] font-medium text-content line-clamp-2" title={item.title}>
+											{item.title}
+										</h3>
+										<div class="mt-1.5 flex items-center justify-between text-[11px] text-content-subtle">
+											<span class="tabular-nums">{item.episodes?.length || 0} EP</span>
+											{#if item.rating}
+												<span
+													class="inline-flex items-center gap-0.5 tabular-nums"
+													style="color: var(--warning)"
+												>
+													<Icon name="star" class="w-2.5 h-2.5" stroke={2} />
+													{item.rating.toFixed(1)}
+												</span>
+											{/if}
+										</div>
+									</div>
+								</article>
+							{/each}
 						</div>
 					{/if}
 				{/if}
+			{/if}
 
+			<!-- ============ BACKUP ============ -->
+			{#if tab === 'backup'}
+				<h1 class="font-display text-lg font-semibold text-content mb-6">Cadangan</h1>
 
-				<!-- BACKUP TAB -->
-				{#if activeTab === 'backup'}
-					<div class="space-y-6 animate-fade-in max-w-3xl mx-auto pb-20">
-						<div class="bg-slate-900 p-6 rounded-xl border border-admin-ink text-center">
-							<h2 class="text-2xl font-bold text-white mb-2">Backup &amp; Restore</h2>
-							<p class="text-slate-400 text-sm">
-								Download semua data anime dan episode ke file JSON, atau restore dari file
-								backup.
-							</p>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+					<section class="card p-5">
+						<div class="flex items-center gap-2 text-content mb-1.5">
+							<Icon name="download" class="w-4 h-4 text-accent" />
+							<h2 class="text-sm font-semibold">Unduh</h2>
 						</div>
+						<p class="text-xs text-content-subtle mb-4">
+							Menyimpan seluruh katalog beserta episode ke satu berkas JSON.
+						</p>
+						<button type="button" onclick={downloadBackup} class="btn-secondary w-full">
+							Unduh berkas
+						</button>
+					</section>
 
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-							<div
-								class="bg-slate-900 rounded-xl border border-admin-ink p-6 flex flex-col items-center text-center"
-							>
-								<h3 class="font-bold text-white mb-2">Download Data</h3>
-								<p class="text-xs text-slate-500 mb-6 px-4">
-									Mengunduh file .json berisi seluruh katalog anime beserta daftar episodenya.
-								</p>
-								<button
-									onclick={handleDownloadBackup}
-									class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg transition"
-									>DOWNLOAD JSON</button
-								>
-							</div>
-
-							<div
-								class="bg-slate-900 rounded-xl border border-admin-ink p-6 flex flex-col items-center text-center"
-							>
-								<h3 class="font-bold text-white mb-2">Restore Data</h3>
-								<p class="text-xs text-slate-500 mb-6 px-4">
-									Upload file .json backup untuk mengembalikan data Anime &amp; Konten.
-								</p>
-								<div class="relative w-full">
-									<input
-										bind:this={fileInputRef}
-										type="file"
-										accept=".json"
-										onchange={handleRestoreBackup}
-										class="hidden"
-										id="restore-file"
-									/>
-									<label
-										for="restore-file"
-										class="cursor-pointer w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded-lg flex items-center justify-center transition"
-										>UPLOAD FILE</label
-									>
-								</div>
-							</div>
+					<section class="card p-5">
+						<div class="flex items-center gap-2 text-content mb-1.5">
+							<Icon name="upload" class="w-4 h-4 text-accent" />
+							<h2 class="text-sm font-semibold">Pulihkan</h2>
 						</div>
+						<p class="text-xs text-content-subtle mb-4">
+							Menimpa katalog saat ini dengan isi berkas cadangan.
+						</p>
+						<input
+							bind:this={fileInput}
+							id="backup-file"
+							type="file"
+							accept="application/json,.json"
+							onchange={restoreBackup}
+							class="sr-only"
+						/>
+						<label for="backup-file" class="btn-secondary w-full cursor-pointer">
+							Pilih berkas
+						</label>
+					</section>
+				</div>
 
-						<div class="bg-red-900/20 border border-red-900/50 rounded-lg p-4 text-xs text-red-400">
-							<strong>Catatan Penting:</strong> Fitur Restore difokuskan untuk mengembalikan <u>Data Anime &amp; Episode</u
-							>. Pastikan Anda menyimpan file backup ini di tempat yang aman.
-						</div>
-					</div>
-				{/if}
-			</div>
+				<div class="mt-4 max-w-3xl flex items-start gap-2.5 rounded-lg border border-line bg-surface-1 p-3.5">
+					<Icon name="info" class="w-4 h-4 text-content-subtle flex-shrink-0 mt-px" />
+					<p class="text-xs leading-relaxed text-content-muted">
+						Cadangan hanya berisi katalog dan episode. Komentar, akun, dan statistik tidak termasuk
+						karena fitur tersebut tidak ada di aplikasi ini.
+					</p>
+				</div>
+			{/if}
 		</main>
 	</div>
 {/if}

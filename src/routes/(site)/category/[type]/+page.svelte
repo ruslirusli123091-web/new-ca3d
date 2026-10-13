@@ -1,129 +1,109 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import type { Donghua } from '$lib/types';
+	import { search } from '$lib/stores/search';
 	import MovieCard from '$components/common/MovieCard.svelte';
 	import SidebarItem from '$components/common/SidebarItem.svelte';
 	import SidebarButtons from '$components/common/SidebarButtons.svelte';
 	import Pagination from '$components/common/Pagination.svelte';
-	import { search } from '$lib/stores/search';
+	import Icon from '$components/common/Icon.svelte';
 
 	let { data }: { data: { donghua: Donghua[]; meta: Record<string, string> } } = $props();
 
-	const ITEMS_PER_PAGE = 18;
+	const PER_PAGE = 18;
 	let pageNum = $state(1);
 
 	const catalogue = $derived(data.donghua ?? []);
 	const type = $derived($page.params.type);
-	const filtered = $derived(
+
+	const items = $derived(
 		catalogue
 			.filter((d) => (d.type || 'series') === type)
 			.filter((d) => d.title.toLowerCase().includes($search.toLowerCase()))
 	);
-	const totalPages = $derived(Math.ceil(filtered.length / ITEMS_PER_PAGE));
-	const paginated = $derived(filtered.slice((pageNum - 1) * ITEMS_PER_PAGE, pageNum * ITEMS_PER_PAGE));
+	const totalPages = $derived(Math.ceil(items.length / PER_PAGE));
+	const pageItems = $derived(items.slice((pageNum - 1) * PER_PAGE, pageNum * PER_PAGE));
 
-	const popularList = $derived(
-		[...catalogue].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5)
-	);
-	const randomList = $derived([...catalogue].sort(() => 0.5 - Math.random()).slice(0, 5));
+	const popular = $derived([...catalogue].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
+	const suggestions = $derived([...catalogue].sort(() => 0.5 - Math.random()).slice(0, 5));
 
-	// Reset page when category changes
+	// Reset to page 1 when the category changes.
 	$effect(() => {
 		type;
 		pageNum = 1;
 	});
 
-	function handlePageChange(p: number) {
+	function changePage(p: number) {
 		pageNum = p;
 		document.getElementById('category-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 </script>
 
 <svelte:head>
-	<title>{data.meta.title} - Chinese Anime 3D</title>
+	<title>{data.meta.title} — Chinese Anime 3D</title>
 	<meta name="description" content={data.meta.description} />
 	<link rel="canonical" href={data.meta.canonical} />
-	<meta property="og:title" content={`${data.meta.title} - Chinese Anime 3D`} />
-	<meta property="og:description" content={data.meta.description} />
-	<meta property="og:url" content={data.meta.canonical as string} />
 	<meta property="og:type" content="website" />
-	<meta name="twitter:card" content="summary_large_image" />
+	<meta property="og:title" content={data.meta.title} />
+	<meta property="og:description" content={data.meta.description} />
+	<meta property="og:url" content={data.meta.canonical} />
 </svelte:head>
 
-<div class="max-w-7xl mx-auto px-4 py-8 min-h-screen">
-	<div class="flex flex-col lg:flex-row gap-8">
-		<div class="flex-1">
-			<div class="flex items-center gap-3 mb-8">
-				<div class="p-2 bg-bg-secondary rounded-lg shadow-sm">
-					<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-						/></svg
-					>
-				</div>
-				<h1 class="font-display text-2xl font-bold capitalize text-text-main uppercase tracking-tight">
-					Arsip {type}
+<div class="max-w-7xl mx-auto px-4 py-8">
+	<div class="flex flex-col lg:flex-row gap-10">
+		<div class="flex-1 min-w-0">
+			<header class="mb-6">
+				<h1 class="font-display text-2xl font-bold text-content capitalize">
+					{type === 'movie' ? 'Movie' : 'Series'}
 				</h1>
-			</div>
+				<p class="mt-1 text-sm text-content-subtle">
+					{items.length} judul ditemukan
+				</p>
+			</header>
 
-			{#if filtered.length === 0}
-				<div class="text-center p-10 bg-bg-secondary rounded-xl text-text-muted shadow-sm">
-					Belum ada data untuk kategori ini.
+			{#if items.length === 0}
+				<div class="card p-10 text-center">
+					<Icon name="inbox" class="w-8 h-8 mx-auto text-content-subtle mb-3" />
+					<p class="text-sm text-content-muted">Belum ada judul untuk kategori ini.</p>
 				</div>
 			{:else}
-				<div
-					id="category-grid"
-					class="stagger-fade-grid grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5 gap-3 gap-y-6 md:gap-x-4 md:gap-y-8 scroll-mt-20"
-				>
-					{#each paginated as item (item.id)}
+				<div id="category-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 scroll-mt-20">
+					{#each pageItems as item (item.id)}
 						<MovieCard {item} />
 					{/each}
 				</div>
-				<Pagination currentPage={pageNum} totalPages={totalPages} onPageChange={handlePageChange} />
+
+				<Pagination currentPage={pageNum} totalPages={totalPages} onPageChange={changePage} />
 			{/if}
 		</div>
 
-		<div class="w-full lg:w-80 flex-shrink-0">
-			<div class="sticky top-24 flex flex-col gap-6">
-				<div class="bg-bg-secondary rounded-xl p-4 shadow-sm">
-					<h3 class="font-bold text-text-main mb-4 flex items-center gap-2">
-						<svg class="w-5 h-5 text-red-hot" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"
-							/><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"
-							/></svg
-						>
-						Top Popular
-					</h3>
-					<div class="flex flex-col gap-1">
-						{#each popularList as item, i (item.id)}
+		<aside class="w-full lg:w-72 flex-shrink-0">
+			<div class="sticky top-24 flex flex-col gap-5">
+				<section class="card p-4">
+					<h2 class="flex items-center gap-2 text-sm font-semibold text-content mb-3">
+						<Icon name="trending-up" class="w-4 h-4 text-accent" />
+						Paling banyak ditonton
+					</h2>
+					<div class="flex flex-col gap-0.5">
+						{#each popular as item, i (item.id)}
 							<SidebarItem {item} rank={i + 1} />
 						{/each}
 					</div>
-				</div>
+				</section>
 
-				<div class="bg-bg-secondary rounded-xl p-4 shadow-sm">
-					<h3 class="font-bold text-text-main mb-4 flex items-center gap-2 text-sm">
-						<span class="text-red-500">❤</span> You May Like
-					</h3>
-					<div class="flex flex-col gap-1">
-						{#each randomList as item, i (item.id)}
+				<section class="card p-4">
+					<h2 class="flex items-center gap-2 text-sm font-semibold text-content mb-3">
+						<Icon name="film" class="w-4 h-4 text-accent" />
+						Mungkin kamu suka
+					</h2>
+					<div class="flex flex-col gap-0.5">
+						{#each suggestions as item, i (item.id)}
 							<SidebarItem {item} rank={i + 1} />
 						{/each}
 					</div>
 					<SidebarButtons />
-				</div>
+				</section>
 			</div>
-		</div>
+		</aside>
 	</div>
 </div>

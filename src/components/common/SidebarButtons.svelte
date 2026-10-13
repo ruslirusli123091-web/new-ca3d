@@ -1,44 +1,29 @@
-<div class="flex flex-col gap-3 mt-4">
-	<a
-		href="https://t.me/+fNYCg8r1Jus0ZmI1"
-		target="_blank"
-		rel="noopener noreferrer"
-		class="brutal-press w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 flex items-center justify-center gap-2 shadow-brutal-sm"
-	>
-		<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"
-			><path
-				d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"
-			/></svg
+<script lang="ts">
+	import Icon from './Icon.svelte';
+
+	/**
+	 * Outbound links. The previous version stacked three full-width buttons in
+	 * unrelated brand colours (blue, orange, yellow) directly under the content,
+	 * which competed with the page's own accent colour. These are now quiet
+	 * secondary actions that only show their brand tint on hover.
+	 */
+	const links = [
+		{ href: 'https://t.me/+fNYCg8r1Jus0ZmI1', label: 'Gabung Telegram', icon: 'send' as const },
+		{ href: 'https://t.me/info_ChineseAnime3D/2', label: 'Traktir / Donasi', icon: 'coffee' as const },
+		{ href: 'https://www.snackvideo.com/HuangDonghua178', label: 'Snack Video', icon: 'video' as const }
+	];
+</script>
+
+<div class="flex flex-col gap-1.5 mt-4 pt-4 border-t border-line">
+	{#each links as link (link.href)}
+		<a
+			href={link.href}
+			target="_blank"
+			rel="noopener noreferrer"
+			class="btn-secondary w-full !justify-start !py-2 !text-[13px]"
 		>
-		GABUNG TELEGRAM
-	</a>
-	<a
-		href="https://t.me/info_ChineseAnime3D/2"
-		target="_blank"
-		rel="noopener noreferrer"
-		class="brutal-press w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 flex items-center justify-center gap-2 shadow-brutal-sm"
-	>
-		<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-			><path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				stroke-width="2"
-				d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-			/></svg
-		>
-		TRAKTIR / DONASI
-	</a>
-	<a
-		href="https://www.snackvideo.com/HuangDonghua178"
-		target="_blank"
-		rel="noopener noreferrer"
-		class="brutal-press w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 flex items-center justify-center gap-2 shadow-brutal-sm"
-	>
-		<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"
-			><path
-				d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"
-			/></svg
-		>
-		SNACK VIDEO
-	</a>
+			<Icon name={link.icon} class="w-4 h-4" />
+			{link.label}
+		</a>
+	{/each}
 </div>
