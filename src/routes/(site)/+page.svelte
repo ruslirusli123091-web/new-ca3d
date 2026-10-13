@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import type { Donghua } from '$lib/types';
-	import { getOptimizedImageUrl, getLatestEp, generateSrcSet } from '$lib/utils/helpers';
+	import { getOptimizedImageUrl, getLatestEp } from '$lib/utils/helpers';
 	import { search } from '$lib/stores/search';
 	import MovieCard from '$components/common/MovieCard.svelte';
 	import SidebarItem from '$components/common/SidebarItem.svelte';
@@ -94,7 +94,7 @@
 	     content arrives, which the previous version did. -->
 	<div class="max-w-7xl mx-auto px-4 py-8">
 		<div class="h-[280px] md:h-[360px] rounded-2xl bg-surface-1 animate-pulse mb-10"></div>
-		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+		<div class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
 			{#each Array(10) as _, i (i)}
 				<div class="space-y-2">
 					<div class="aspect-[2/3] rounded-xl bg-surface-1 animate-pulse"></div>
@@ -105,82 +105,123 @@
 		</div>
 	</div>
 {:else}
-	<!-- Hero. The previous version stacked five gradient overlays, a blurred
-	     backdrop image, a second masked image, a typewriter heading, an
-	     animated counter and a coloured pill on top of one poster. -->
+	<!--
+	  Hero.
+
+	  The previous version stretched a 2:3 portrait poster across a wide banner
+	  with `object-cover`, which cropped the artwork into an unrecognisable strip
+	  and made it look squashed. It also laid the title over a mid-tone gradient,
+	  so on mobile the text sat on top of bright artwork and became unreadable.
+
+	  This version keeps the poster at its real aspect ratio in a fixed-width
+	  column, and uses a heavily blurred, darkened copy of the same image as the
+	  backdrop. Text sits on a solid dark scrim, so contrast is stable no matter
+	  which artwork is showing.
+	-->
 	{#if current}
-		<section class="relative h-[300px] md:h-[400px] overflow-hidden" aria-label="Rekomendasi utama">
+		<section class="relative overflow-hidden border-b border-line" aria-label="Rekomendasi utama">
+			<!-- Backdrop: blurred + darkened, never used to judge the artwork -->
 			{#each featured as item, i (item.id)}
 				<div
 					class="absolute inset-0 transition-opacity duration-700 ease-smooth
-					       {i === bannerIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'}"
-					aria-hidden={i !== bannerIndex}
+					       {i === bannerIndex ? 'opacity-100' : 'opacity-0'}"
+					aria-hidden="true"
 				>
 					<img
-						src={getOptimizedImageUrl(item.image, 1200)}
-						srcset={generateSrcSet(item.image, [640, 960, 1280])}
-						sizes="100vw"
+						src={getOptimizedImageUrl(item.image, 400)}
 						alt=""
-						width="1280"
-						height="720"
-						class="w-full h-full object-cover"
+						class="w-full h-full object-cover blur-3xl scale-125"
 						loading={i === 0 ? 'eager' : 'lazy'}
-						fetchpriority={i === 0 ? 'high' : 'low'}
 					/>
-					<div class="absolute inset-0 bg-gradient-to-t from-surface-0 via-surface-0/85 to-surface-0/30"></div>
+					<div class="absolute inset-0 bg-surface-0/80"></div>
 				</div>
 			{/each}
 
-			<div class="relative h-full max-w-7xl mx-auto px-4 flex flex-col justify-end pb-8 md:pb-10">
-				<span class="badge-accent w-fit mb-3">Baru ditambahkan</span>
+			<div class="relative max-w-7xl mx-auto px-4 py-8 md:py-12">
+				<div class="flex flex-col sm:flex-row gap-6 md:gap-8 items-center sm:items-start">
+					<!-- Poster at true 2:3 aspect — never stretched -->
+					<div class="w-40 sm:w-44 md:w-52 flex-shrink-0">
+						<div class="aspect-[2/3] rounded-xl overflow-hidden border border-line shadow-xl bg-surface-2">
+							<img
+								src={getOptimizedImageUrl(current.image, 400)}
+								alt={current.title}
+								width="400"
+								height="600"
+								class="w-full h-full object-cover"
+								loading="eager"
+								fetchpriority="high"
+							/>
+						</div>
+					</div>
 
-				<h1 class="font-display text-2xl md:text-4xl font-bold text-content max-w-2xl line-clamp-2">
-					{current.title}
-				</h1>
+					<!-- Text: solid surface so contrast never depends on the artwork -->
+					<div class="flex-1 min-w-0 text-center sm:text-left">
+						<span class="badge-accent mb-3">Baru ditambahkan</span>
 
-				<div class="mt-3 flex items-center gap-3 text-sm text-content-muted">
-					{#if getLatestEp(current.episodes)}
-						<span class="tabular-nums">Episode {getLatestEp(current.episodes)}</span>
-					{/if}
-					{#if current.rating}
-						<span class="inline-flex items-center gap-1 tabular-nums" style="color: var(--warning)">
-							<Icon name="star" class="w-3.5 h-3.5" stroke={2} />
-							{current.rating.toFixed(1)}
-						</span>
-					{/if}
-					{#if current.day}
-						<span>{current.day}</span>
-					{/if}
-				</div>
+						<h1
+							class="font-display text-xl sm:text-2xl md:text-3xl font-bold leading-tight text-content line-clamp-2"
+						>
+							{current.title}
+						</h1>
 
-				<p class="mt-3 hidden md:block max-w-xl text-sm leading-relaxed text-content-muted line-clamp-2">
-					{current.synopsis}
-				</p>
+						<div
+							class="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1.5 text-sm"
+						>
+							{#if current.rating}
+								<span
+									class="inline-flex items-center gap-1 font-medium tabular-nums"
+									style="color: var(--warning)"
+								>
+									<Icon name="star" class="w-4 h-4" stroke={2} />
+									{current.rating.toFixed(1)}
+									<span class="text-content-subtle font-normal">/ 10</span>
+								</span>
+							{/if}
+							{#if getLatestEp(current.episodes)}
+								<span class="text-content-muted tabular-nums">
+									Episode {getLatestEp(current.episodes)}
+								</span>
+							{/if}
+							<span class="text-content-muted tabular-nums">
+								{(current.views || 0).toLocaleString('id-ID')} tayangan
+							</span>
+							{#if current.day}
+								<span class="text-content-muted">{current.day}</span>
+							{/if}
+						</div>
 
-				<div class="mt-5 flex items-center gap-3">
-					<button
-						type="button"
-						onclick={() => goto(`/watch/${current.id}/${getLatestEp(current.episodes)}`)}
-						class="btn-primary"
-					>
-						<Icon name="play" class="w-4 h-4" stroke={0} />
-						Tonton sekarang
-					</button>
-					<a href={`/synopsis/${current.id}`} class="btn-secondary">Detail</a>
-				</div>
+						<p
+							class="mt-3 max-w-xl text-sm leading-relaxed text-content-muted line-clamp-3 sm:line-clamp-2"
+						>
+							{current.synopsis}
+						</p>
 
-				<!-- Slide indicators -->
-				<div class="mt-6 flex gap-1.5">
-					{#each featured as _, i (i)}
-						<button
-							type="button"
-							onclick={() => (bannerIndex = i)}
-							class="h-1 rounded-full transition-all duration-300 ease-smooth
-							       {i === bannerIndex ? 'w-8 bg-accent' : 'w-4 bg-surface-3 hover:bg-line-strong'}"
-							aria-label={`Slide ${i + 1}`}
-							aria-current={i === bannerIndex}
-						></button>
-					{/each}
+						<div class="mt-5 flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+							<button
+								type="button"
+								onclick={() => goto(`/watch/${current.id}/${getLatestEp(current.episodes)}`)}
+								class="btn-primary"
+							>
+								<Icon name="play" class="w-4 h-4" stroke={0} />
+								Tonton sekarang
+							</button>
+							<a href={`/synopsis/${current.id}`} class="btn-secondary">Detail</a>
+						</div>
+
+						<!-- Slide indicators -->
+						<div class="mt-6 flex gap-1.5 justify-center sm:justify-start">
+							{#each featured as _, i (i)}
+								<button
+									type="button"
+									onclick={() => (bannerIndex = i)}
+									class="h-1 rounded-full transition-all duration-300 ease-smooth
+									       {i === bannerIndex ? 'w-8 bg-accent' : 'w-4 bg-surface-3 hover:bg-line-strong'}"
+									aria-label={`Slide ${i + 1}`}
+									aria-current={i === bannerIndex}
+								></button>
+							{/each}
+						</div>
+					</div>
 				</div>
 			</div>
 		</section>
@@ -200,7 +241,7 @@
 						>
 					</div>
 
-					<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+					<div class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
 						{#each seriesPageItems as item (item.id)}
 							<MovieCard {item} />
 						{/each}
@@ -225,7 +266,7 @@
 							>
 						</div>
 
-						<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+						<div class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
 							{#each moviePageItems as item (item.id)}
 								<MovieCard {item} />
 							{/each}

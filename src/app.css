@@ -384,6 +384,68 @@ body {
 }
 
 /* =========================================================
+   MOVIE CARD PLAY OVERLAY
+   ---------------------------------------------------------
+   Kept in the global stylesheet rather than the component's
+   <style> block. Svelte 5 strips component CSS it considers
+   unused, which silently removed these rules and left the play
+   affordance invisible on touch devices.
+   ========================================================= */
+.card-play-overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: color-mix(in srgb, var(--surface-0) 45%, transparent);
+	opacity: 0;
+	transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	pointer-events: none;
+}
+
+/* Visible on hover (pointer devices), on focus (keyboard) and after a tap
+   (touch devices, where there is no hover). */
+.card-play-overlay[data-visible='true'],
+article:hover .card-play-overlay,
+article:focus-within .card-play-overlay {
+	opacity: 1;
+}
+
+.card-play-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 9999px;
+	background-color: var(--accent);
+	color: var(--accent-on);
+	box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
+	transform: scale(0.9);
+	transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-play-overlay[data-visible='true'] .card-play-button,
+article:hover .card-play-button,
+article:focus-within .card-play-button {
+	transform: scale(1);
+}
+
+@media (min-width: 640px) {
+	.card-play-button {
+		width: 2.75rem;
+		height: 2.75rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.card-play-overlay,
+	.card-play-button {
+		transition: none;
+	}
+}
+
+/* =========================================================
    MOTION
    Respect the user's reduced-motion preference. The old build
    animated 30+ elements on every page load, which is both

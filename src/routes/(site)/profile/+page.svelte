@@ -1,10 +1,8 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import type { Donghua } from '$lib/types';
 	import {
 		bookmarks,
 		history,
-		nickname,
 		clearHistory,
 		removeHistory,
 		exportLibrary,
@@ -20,13 +18,8 @@
 	const catalogue = $derived(data.donghua ?? []);
 
 	let tab = $state<'bookmarks' | 'history'>('bookmarks');
-	let nameInput = $state('');
 	let notice = $state('');
 	let fileInput = $state<HTMLInputElement>();
-
-	$effect(() => {
-		nameInput = $nickname;
-	});
 
 	const popular = $derived([...catalogue].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
 	const suggestions = $derived([...catalogue].sort(() => 0.5 - Math.random()).slice(0, 5));
@@ -40,11 +33,6 @@
 			})
 			.filter((x): x is Donghua & { watchedEp: string } => x !== null)
 	);
-
-	function saveName() {
-		nickname.set(nameInput);
-		nameInput = $nickname;
-	}
 
 	function download() {
 		const blob = new Blob([exportLibrary()], { type: 'application/json' });
@@ -85,25 +73,9 @@
 			<header class="mb-8">
 				<h1 class="font-display text-2xl font-bold text-content">Koleksi saya</h1>
 				<p class="mt-1 text-sm text-content-muted">
-					Disimpan di browser ini saja — tidak ada akun dan tidak ada data yang dikirim ke server.
+					Favorit dan riwayat tontonan disimpan di browser ini saja.
 				</p>
 			</header>
-
-			<!-- Display name, used for nothing but local labelling. -->
-			<section class="card p-4 mb-8">
-				<label class="label" for="nickname">Nama tampilan</label>
-				<div class="flex gap-2">
-					<input
-						id="nickname"
-						bind:value={nameInput}
-						type="text"
-						maxlength="24"
-						placeholder="Nama kamu"
-						class="input"
-					/>
-					<button type="button" onclick={saveName} class="btn-primary flex-shrink-0">Simpan</button>
-				</div>
-			</section>
 
 			<!-- Tabs -->
 			<div class="flex items-center gap-1 p-1 rounded-xl bg-surface-1 border border-line mb-6">
@@ -143,7 +115,7 @@
 						</p>
 					</div>
 				{:else}
-					<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+					<div class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
 						{#each savedItems as item (item.id)}
 							<MovieCard {item} />
 						{/each}

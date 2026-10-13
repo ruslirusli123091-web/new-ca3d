@@ -13,25 +13,49 @@
 
 	const latestEp = $derived(getLatestEp(item.episodes));
 
+	/**
+	 * Play affordance.
+	 *
+	 * On touch devices there is no hover, so the play overlay has to appear on
+	 * tap. The first tap reveals it, and a second tap (on the now-visible
+	 * overlay) navigates — this avoids navigating on an accidental tap while
+	 * still giving immediate visual feedback that the card is a video.
+	 */
+	let pressed = $state(false);
+	let navigating = $state(false);
+
+	function onActivate() {
+		if (navigating) return;
+
+		const isTouch =
+			typeof window !== 'undefined' &&
+			window.matchMedia?.('(hover: none)').matches === true;
+
+		if (isTouch && !pressed) {
+			pressed = true;
+			return;
+		}
+		open();
+	}
+
 	async function open() {
-		await api.trackView(item.id);
-		goto(`/synopsis/${item.id}`);
+		navigating = true;
+		try {
+			await api.trackView(item.id);
+		} catch {
+			/* a failed view count must not block navigation */
+		}
+		await goto(`/synopsis/${item.id}`);
 	}
 </script>
 
-<!--
-  Card structure is deliberately simple: artwork, then a short meta block.
-  Removed from the previous version: a rotating neumorphic frame, a gradient
-  scrim, a full-width coloured type banner, an oversized play button, two
-  competing status pills, and a star badge — five overlapping decorations on a
-  single thumbnail.
--->
 <article class="group">
 	<button
 		type="button"
-		onclick={open}
-		class="block w-full text-left rounded-xl overflow-hidden border border-line bg-surface-1
-		       transition-colors duration-150 ease-smooth
+		onclick={onActivate}
+		onblur={() => (pressed = false)}
+		class="block w-full text-left rounded-lg sm:rounded-xl overflow-hidden border border-line
+		       bg-surface-1 transition-colors duration-150 ease-smooth
 		       hover:border-line-strong focus-visible:border-accent"
 		aria-label={`Lihat ${item.title}`}
 	>
@@ -43,44 +67,59 @@
 				alt={item.title}
 				width="300"
 				height="450"
-				class="w-full h-full object-cover transition-transform duration-300 ease-smooth group-hover:scale-[1.03]"
+				class="w-full h-full object-cover transition-transform duration-300 ease-smooth
+				       group-hover:scale-[1.04]"
 				loading="lazy"
 				decoding="async"
 			/>
 
-			<!-- Episode count: the one piece of data viewers scan for. -->
+			<!--
+			  Play overlay.
+
+			  Visibility is driven by a `data-visible` attribute rather than by
+			  swapping Tailwind opacity classes. Tailwind's content scanner could
+			  not see `opacity-100` inside the conditional class string, so the
+			  rule was never generated and the overlay stayed invisible on touch
+			  devices. The styles below are explicit, so they always exist.
+			-->
+			<div class="card-play-overlay" data-visible={pressed} aria-hidden="true">
+				<span class="card-play-button">
+					<Icon name="play" class="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" stroke={0} />
+				</span>
+			</div>
+
 			{#if latestEp}
 				<span
-					class="absolute top-2 right-2 px-1.5 py-0.5 rounded-md text-[11px] font-semibold
-					       bg-surface-0/85 text-content backdrop-blur-sm tabular-nums"
+					class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] sm:text-[11px]
+					       font-semibold bg-surface-0/85 text-content backdrop-blur-sm tabular-nums"
 				>
 					EP {latestEp}
 				</span>
 			{/if}
 
-			<!-- Manual admin rating, shown only when it exists. -->
 			{#if item.rating}
 				<span
-					class="absolute bottom-2 left-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md
-					       text-[11px] font-semibold bg-surface-0/85 backdrop-blur-sm tabular-nums"
+					class="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5
+					       rounded text-[10px] sm:text-[11px] font-semibold
+					       bg-surface-0/85 backdrop-blur-sm tabular-nums"
 					style="color: var(--warning)"
 				>
-					<Icon name="star" class="w-3 h-3" stroke={2} />
+					<Icon name="star" class="w-2.5 h-2.5" stroke={2} />
 					{item.rating.toFixed(1)}
 				</span>
 			{/if}
 		</div>
 
-		<div class="p-2.5">
+		<div class="p-1.5 sm:p-2.5">
 			<h3
-				class="text-[13px] font-medium leading-snug text-content line-clamp-2
+				class="text-[11px] sm:text-[13px] font-medium leading-snug text-content line-clamp-2
 				       group-hover:text-accent transition-colors duration-150"
 				title={item.title}
 			>
 				{item.title}
 			</h3>
 
-			<div class="mt-1.5 flex items-center justify-between text-[11px] text-content-subtle">
+			<div class="mt-1 hidden sm:flex items-center justify-between text-[11px] text-content-subtle">
 				<span class="inline-flex items-center gap-1 tabular-nums">
 					<Icon name="eye" class="w-3 h-3" />
 					{(item.views || 0).toLocaleString('id-ID')}
@@ -94,6 +133,13 @@
 					</span>
 				{/if}
 			</div>
+
+			<!-- Views stay visible on mobile, just below the title -->
+			<div class="mt-1 flex sm:hidden items-center gap-1 text-[10px] text-content-subtle">
+				<Icon name="eye" class="w-2.5 h-2.5" />
+				<span class="tabular-nums">{(item.views || 0).toLocaleString('id-ID')}</span>
+			</div>
 		</div>
 	</button>
 </article>
+

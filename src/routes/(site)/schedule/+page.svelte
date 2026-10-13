@@ -80,7 +80,7 @@
 					<p class="text-sm text-content-muted">Tidak ada judul yang tayang hari {activeDay}.</p>
 				</div>
 			{:else}
-				<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+				<div class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
 					{#each items as item (item.id)}
 						<MovieCard {item} />
 					{/each}

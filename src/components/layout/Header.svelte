@@ -32,6 +32,12 @@
 	let query = $state('');
 	let results = $state<Donghua[]>([]);
 	let subscribed = $state(false);
+	let message = $state('');
+
+	function toast(text: string) {
+		message = text;
+		setTimeout(() => (message = ''), 4000);
+	}
 
 	// Close transient overlays whenever the route changes.
 	$effect(() => {
@@ -46,14 +52,40 @@
 		window.addEventListener('scroll', onScroll, { passive: true });
 		onScroll();
 
+		/**
+		 * The service worker was never registered anywhere in the app, so
+		 * `navigator.serviceWorker.ready` never resolved and the notification
+		 * button sat on its loading spinner forever. Registration happens here
+		 * once, and the subscription check is bounded by a timeout so a slow or
+		 * blocked worker can never freeze the UI again.
+		 */
 		if ('serviceWorker' in navigator && 'PushManager' in window) {
-			navigator.serviceWorker.ready.then((reg) => {
-				reg.pushManager.getSubscription().then((sub) => (subscribed = !!sub));
-			});
+			navigator.serviceWorker
+				.register('/sw.js')
+				.then(() => navigator.serviceWorker.ready)
+				.then((reg) => reg.pushManager.getSubscription())
+				.then((sub) => (subscribed = !!sub))
+				.catch(() => {
+					/* worker unavailable (private mode, unsupported browser) —
+					   the button will explain this when pressed */
+				});
 		}
 
 		return () => window.removeEventListener('scroll', onScroll);
 	});
+
+	/** Resolve `serviceWorker.ready` but never hang: notifications are optional. */
+	async function getRegistration(timeoutMs = 5000): Promise<ServiceWorkerRegistration | null> {
+		try {
+			await navigator.serviceWorker.register('/sw.js');
+		} catch {
+			return null;
+		}
+		return Promise.race([
+			navigator.serviceWorker.ready,
+			new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs))
+		]);
+	}
 
 	function onQueryChange(value: string) {
 		query = value;
@@ -75,28 +107,91 @@
 		return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 	}
 
+	/**
+	 * Push notifications.
+	 *
+	 * The previous version failed silently: if the VAPID key was wrong, the KV
+	 * binding was missing, or the visitor's browser did not support push, the
+	 * click did nothing at all and no explanation was shown. It now reports the
+	 * actual reason at every step.
+	 *
+	 * Notifications also require a configured VAPID key and a KV namespace on the
+	 * server; when either is absent the button says so instead of pretending to
+	 * work.
+	 */
+	let notifyBusy = $state(false);
+
 	async function toggleNotifications() {
-		if (!('serviceWorker' in navigator)) return;
+		if (notifyBusy) return;
+
+		if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+			toast('Browser ini tidak mendukung notifikasi.');
+			return;
+		}
+		if (!VAPID_PUBLIC_KEY) {
+			toast('Notifikasi belum dikonfigurasi oleh admin.');
+			return;
+		}
+
+		notifyBusy = true;
 		try {
-			const reg = await navigator.serviceWorker.ready;
-			if (subscribed) {
-				const sub = await reg.pushManager.getSubscription();
-				await sub?.unsubscribe();
-				subscribed = false;
+			const reg = await getRegistration();
+			if (!reg) {
+				toast('Notifikasi tidak tersedia di browser ini.');
 				return;
 			}
+
+			if (subscribed) {
+				const sub = await reg.pushManager.getSubscription();
+				if (sub) {
+					await fetch('/api/subscribe', {
+						method: 'DELETE',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ endpoint: sub.endpoint })
+					}).catch(() => undefined);
+					await sub.unsubscribe();
+				}
+				subscribed = false;
+				toast('Notifikasi dimatikan.');
+				return;
+			}
+
+			const permission = await Notification.requestPermission();
+			if (permission !== 'granted') {
+				toast(
+					permission === 'denied'
+						? 'Izin notifikasi diblokir. Aktifkan lewat setelan situs di browser.'
+						: 'Izin notifikasi tidak diberikan.'
+				);
+				return;
+			}
+
 			const sub = await reg.pushManager.subscribe({
 				userVisibleOnly: true,
 				applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
 			});
-			await fetch('/api/subscribe', {
+
+			const res = await fetch('/api/subscribe', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(sub)
 			});
+
+			if (!res.ok) {
+				// Roll the subscription back so the UI never claims success when
+				// the server rejected it.
+				await sub.unsubscribe();
+				const body = await res.json().catch(() => ({}));
+				toast(body.error || 'Gagal menyimpan langganan di server.');
+				return;
+			}
+
 			subscribed = true;
-		} catch {
-			/* the visitor declined or the browser refused the subscription */
+			toast('Notifikasi aktif.');
+		} catch (err) {
+			toast(`Gagal mengaktifkan notifikasi: ${(err as Error).message}`);
+		} finally {
+			notifyBusy = false;
 		}
 	}
 </script>
@@ -256,11 +351,22 @@
 			<button
 				type="button"
 				onclick={toggleNotifications}
+				disabled={notifyBusy}
 				class="btn-icon {subscribed ? 'text-accent' : ''}"
 				aria-label={subscribed ? 'Matikan notifikasi' : 'Aktifkan notifikasi'}
 				aria-pressed={subscribed}
+				title={subscribed ? 'Notifikasi aktif' : 'Aktifkan notifikasi'}
 			>
-				<Icon name="bell" class="w-[18px] h-[18px]" />
+				{#if notifyBusy}
+					<span
+						class="w-[18px] h-[18px] rounded-full border-2 border-line border-t-accent animate-spin"
+					></span>
+				{:else}
+					<Icon name="bell" class="w-[18px] h-[18px]" />
+					{#if subscribed}
+						<span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-accent"></span>
+					{/if}
+				{/if}
 			</button>
 
 			<!-- Mobile search toggle -->
@@ -363,4 +469,18 @@
 		aria-label="Tutup menu tema"
 		onclick={() => (themeMenuOpen = false)}
 	></button>
+{/if}
+
+<!-- Transient status message, so notification failures are visible -->
+{#if message}
+	<div
+		class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] sm:max-w-md
+		       flex items-start gap-2.5 rounded-xl border border-line bg-surface-2
+		       px-4 py-3 shadow-xl animate-fade-up"
+		role="status"
+		aria-live="polite"
+	>
+		<Icon name="info" class="w-4 h-4 flex-shrink-0 mt-px text-accent" />
+		<p class="text-sm text-content">{message}</p>
+	</div>
 {/if}

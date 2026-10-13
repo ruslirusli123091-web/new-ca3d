@@ -50,6 +50,26 @@
 	let notify = $state(false);
 	let notifyText = $state('');
 
+	/**
+	 * Episode navigation state.
+	 *
+	 * A series can have 185+ episodes. The previous version rendered every
+	 * episode at once in one long scrolling column, which made finding a
+	 * specific episode slow and the page heavy. Episodes are now:
+	 *   - filtered by a search box (by episode number)
+	 *   - shown in a compact list, 20 at a time, with paging
+	 *   - collapsed by default, showing only the episode number and host
+	 *   - expandable one at a time for editing its mirrors
+	 */
+	let episodeQuery = $state('');
+	let episodePage = $state(1);
+	const EPISODES_PER_PAGE = 20;
+	let expandedEpisode = $state<number | null>(null);
+
+	// ---- list navigation for the catalogue ----
+	let listPage = $state(1);
+	const TITLES_PER_PAGE = 24;
+
 	let fileInput = $state<HTMLInputElement>();
 
 	onMount(async () => {
@@ -103,6 +123,9 @@
 		draftEpisodes = [];
 		notify = false;
 		notifyText = '';
+		episodeQuery = '';
+		episodePage = 1;
+		expandedEpisode = null;
 	}
 
 	function openEditor(item?: Donghua) {
@@ -122,19 +145,21 @@
 				draftPublishAt = d.toISOString().slice(0, 16);
 			}
 			draftEpisodes = item.episodes.map((e) => {
-				const raw = e.url ?? '';
+				const raw = (e.url ?? '').trim();
 				let servers: ServerEntry[] = [];
 				if (raw.includes('|')) {
 					servers = raw
 						.split('\n')
 						.map((line) => {
-							const [name, ...rest] = line.split('|');
-							const url = rest.join('|').trim();
-							return url ? { name: name.trim() || 'Server', url } : null;
+							const idx = line.indexOf('|');
+							if (idx === -1) return null;
+							const name = line.slice(0, idx).trim() || 'Server';
+							const url = line.slice(idx + 1).trim();
+							return url ? { name, url } : null;
 						})
 						.filter((s): s is ServerEntry => s !== null);
 				}
-				if (servers.length === 0) servers = [{ name: 'Server', url: raw }];
+				if (servers.length === 0) servers = [{ name: 'Server 1', url: raw }];
 				return { ep: e.ep, servers };
 			});
 		}
@@ -142,38 +167,59 @@
 	}
 
 	function addEpisode() {
-		draftEpisodes = [...draftEpisodes, { ep: '', servers: [{ name: 'Server', url: '' }] }];
+		// Suggest the next episode number based on the highest existing one.
+		const numbers = draftEpisodes
+			.map((e) => parseFloat(e.ep))
+			.filter((n) => Number.isFinite(n));
+		const next = numbers.length ? Math.max(...numbers) + 1 : 1;
+		draftEpisodes = [...draftEpisodes, { ep: String(next), servers: [{ name: 'Server 1', url: '' }] }];
+		expandedEpisode = draftEpisodes.length - 1;
+		episodePage = Math.ceil(draftEpisodes.length / EPISODES_PER_PAGE);
 	}
 
 	function removeEpisode(index: number) {
+		if (!confirm(`Hapus episode ${draftEpisodes[index]?.ep || index + 1}?`)) return;
 		draftEpisodes = draftEpisodes.filter((_, i) => i !== index);
-	}
-
-	function moveEpisode(index: number, delta: number) {
-		const target = index + delta;
-		if (target < 0 || target >= draftEpisodes.length) return;
-		const next = [...draftEpisodes];
-		[next[index], next[target]] = [next[target], next[index]];
-		draftEpisodes = next;
+		expandedEpisode = null;
 	}
 
 	function addServer(epIndex: number) {
+		const servers = draftEpisodes[epIndex].servers;
 		draftEpisodes[epIndex].servers = [
-			...draftEpisodes[epIndex].servers,
-			{ name: 'Server', url: '' }
+			...servers,
+			{ name: `Server ${servers.length + 1}`, url: '' }
 		];
+		draftEpisodes = draftEpisodes;
 	}
 
 	function removeServer(epIndex: number, serverIndex: number) {
 		draftEpisodes[epIndex].servers = draftEpisodes[epIndex].servers.filter(
 			(_, i) => i !== serverIndex
 		);
+		draftEpisodes = draftEpisodes;
 	}
 
 	function toggleDay(day: string) {
 		draftDays = draftDays.includes(day)
 			? draftDays.filter((d) => d !== day)
 			: [...draftDays, day];
+	}
+
+	/**
+	 * Sort episodes numerically by episode number. Without this, "10" sorts
+	 * before "2" and a 185-episode series becomes impossible to scan.
+	 */
+	function sortEpisodes() {
+		draftEpisodes = [...draftEpisodes].sort((a, b) => {
+			const x = parseFloat(a.ep);
+			const y = parseFloat(b.ep);
+			if (!Number.isFinite(x) && !Number.isFinite(y)) return 0;
+			if (!Number.isFinite(x)) return 1;
+			if (!Number.isFinite(y)) return -1;
+			return x - y;
+		});
+		episodePage = 1;
+		flash('Episode diurutkan berdasarkan nomor.');
 	}
 
 	async function save() {
@@ -188,10 +234,10 @@
 		const episodes = draftEpisodes
 			.map((e) => {
 				const usable = e.servers.filter((s) => s.url.trim());
-				// A single unnamed mirror is stored as a bare URL; several mirrors
-				// are stored as "Name|URL" lines.
+				// One unnamed mirror is stored as a bare URL; several mirrors are
+				// stored as "Name|URL" lines.
 				const url =
-					usable.length === 1 && usable[0].name === 'Server'
+					usable.length === 1 && /^Server 1$/.test(usable[0].name)
 						? usable[0].url.trim()
 						: usable.map((s) => `${s.name.trim()}|${s.url.trim()}`).join('\n');
 				return { ep: e.ep.trim(), url, title: `Episode ${e.ep.trim()}`, video: url };
@@ -266,7 +312,13 @@
 	// ---- backup ----
 	function downloadBackup() {
 		const blob = new Blob(
-			[JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), donghua: catalogue }, null, 2)],
+			[
+				JSON.stringify(
+					{ version: 1, exportedAt: new Date().toISOString(), donghua: catalogue },
+					null,
+					2
+				)
+			],
 			{ type: 'application/json' }
 		);
 		const url = URL.createObjectURL(blob);
@@ -307,11 +359,46 @@
 		reader.readAsText(file);
 	}
 
+	// ---- derived ----
 	const filtered = $derived(
 		catalogue
 			.filter((d) => d.title.toLowerCase().includes(query.toLowerCase()))
 			.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0))
 	);
+
+	const totalListPages = $derived(Math.max(1, Math.ceil(filtered.length / TITLES_PER_PAGE)));
+	const listPageItems = $derived(
+		filtered.slice((listPage - 1) * TITLES_PER_PAGE, listPage * TITLES_PER_PAGE)
+	);
+
+	$effect(() => {
+		query;
+		listPage = 1;
+	});
+
+	// Episode filtering + paging for the editor.
+	const filteredEpisodes = $derived(
+		draftEpisodes
+			.map((e, index) => ({ e, index }))
+			.filter(({ e }) => {
+				if (!episodeQuery.trim()) return true;
+				return e.ep.toLowerCase().includes(episodeQuery.trim().toLowerCase());
+			})
+	);
+	const totalEpisodePages = $derived(
+		Math.max(1, Math.ceil(filteredEpisodes.length / EPISODES_PER_PAGE))
+	);
+	const episodePageItems = $derived(
+		filteredEpisodes.slice(
+			(episodePage - 1) * EPISODES_PER_PAGE,
+			episodePage * EPISODES_PER_PAGE
+		)
+	);
+
+	$effect(() => {
+		episodeQuery;
+		episodePage = 1;
+	});
 
 	const stats = $derived({
 		titles: catalogue.length,
@@ -319,6 +406,15 @@
 		views: catalogue.reduce((sum, d) => sum + (d.views || 0), 0),
 		movies: catalogue.filter((d) => d.type === 'movie').length
 	});
+
+	/** Which host a mirror points at, shown so the admin can spot bad URLs. */
+	function hostOf(url: string): string {
+		try {
+			return new URL(url).hostname.replace(/^www\./, '');
+		} catch {
+			return '—';
+		}
+	}
 </script>
 
 <svelte:head>
@@ -335,8 +431,6 @@
 		></div>
 	</div>
 {:else if !authed}
-	<!-- Sign in. The previous version used a decorative neumorphic card with
-	     inset shadow inputs and a floating icon badge. This is a plain form. -->
 	<div class="min-h-screen flex items-center justify-center bg-surface-0 px-4">
 		<form onsubmit={signIn} class="w-full max-w-sm card p-6">
 			<div class="mb-6">
@@ -382,15 +476,10 @@
 					{signingIn ? 'Memproses…' : 'Masuk'}
 				</button>
 			</div>
-
-			<p class="mt-5 text-[11px] leading-relaxed text-content-subtle">
-				Kredensial dibaca dari environment variable server, bukan dari database.
-			</p>
 		</form>
 	</div>
 {:else}
 	<div class="admin-shell min-h-screen flex flex-col">
-		<!-- Top bar -->
 		<header class="sticky top-0 z-30 border-b border-line bg-surface-0/90 backdrop-blur-md">
 			<div class="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
 				<a href="/" class="flex items-center gap-2 flex-shrink-0">
@@ -436,7 +525,6 @@
 				</div>
 			</div>
 
-			<!-- Mobile tabs -->
 			<div class="sm:hidden border-t border-line px-3 py-2 flex gap-1">
 				<button
 					type="button"
@@ -468,11 +556,12 @@
 		<main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
 			{#if toast}
 				<div
-					class="mb-4 flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-sm text-content animate-fade-in"
+					class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2
+					       rounded-xl border border-line bg-surface-2 px-4 py-3 shadow-xl animate-fade-up"
 					role="status"
 				>
 					<Icon name="check" class="w-4 h-4 text-accent flex-shrink-0" />
-					{toast}
+					<span class="text-sm text-content">{toast}</span>
 				</div>
 			{/if}
 
@@ -480,34 +569,41 @@
 			{#if tab === 'catalogue'}
 				{#if editing}
 					<!-- ---------- Editor ---------- -->
-					<div class="flex items-center justify-between mb-6">
-						<div class="flex items-center gap-3">
+					<div
+						class="sticky top-14 z-20 -mx-4 px-4 py-3 mb-6 border-b border-line
+						       bg-surface-0/95 backdrop-blur-md flex items-center justify-between gap-3"
+					>
+						<div class="flex items-center gap-3 min-w-0">
 							<button
 								type="button"
 								onclick={() => (editing = false)}
-								class="btn-secondary !px-2.5"
-								aria-label="Kembali"
+								class="btn-secondary !px-2.5 flex-shrink-0"
+								aria-label="Kembali ke katalog"
 							>
 								<Icon name="arrow-left" class="w-4 h-4" />
 							</button>
-							<h1 class="font-display text-lg font-semibold text-content">
-								{draftId ? 'Ubah judul' : 'Judul baru'}
-							</h1>
+							<div class="min-w-0">
+								<h1 class="font-display text-base font-semibold text-content truncate">
+									{draftId ? 'Ubah judul' : 'Judul baru'}
+								</h1>
+								<p class="text-[11px] text-content-subtle tabular-nums">
+									{draftEpisodes.length} episode
+								</p>
+							</div>
 						</div>
-						<button type="button" onclick={save} disabled={busy} class="btn-primary">
+
+						<button type="button" onclick={save} disabled={busy} class="btn-primary flex-shrink-0">
 							<Icon name="check" class="w-4 h-4" />
 							{busy ? 'Menyimpan…' : 'Simpan'}
 						</button>
 					</div>
 
-					<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-24">
-						<!-- Column 1: artwork + meta -->
+					<div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 pb-16">
+						<!-- Left: artwork + metadata -->
 						<div class="space-y-5">
 							<section class="card p-4">
 								<h2 class="label">Poster</h2>
-								<div
-									class="aspect-[2/3] rounded-lg overflow-hidden bg-surface-2 border border-line mb-3"
-								>
+								<div class="aspect-[2/3] rounded-lg overflow-hidden bg-surface-2 border border-line mb-3">
 									{#if draftImage}
 										<img
 											src={getOptimizedImageUrl(draftImage, 300)}
@@ -515,38 +611,35 @@
 											class="w-full h-full object-cover"
 										/>
 									{:else}
-										<div class="w-full h-full flex flex-col items-center justify-center gap-2 text-content-subtle">
+										<div
+											class="w-full h-full flex flex-col items-center justify-center gap-2 text-content-subtle"
+										>
 											<Icon name="image" class="w-6 h-6" />
 											<span class="text-xs">Belum ada gambar</span>
 										</div>
 									{/if}
 								</div>
 								<label class="label" for="ed-image">URL gambar</label>
-								<input
-									id="ed-image"
-									bind:value={draftImage}
-									type="text"
-									placeholder="https://…"
-									class="input"
-								/>
+								<input id="ed-image" bind:value={draftImage} type="text" placeholder="https://…" class="input" />
 							</section>
 
 							<section class="card p-4 space-y-4">
-								<div>
-									<label class="label" for="ed-type">Tipe</label>
-									<select id="ed-type" bind:value={draftType} class="input">
-										<option value="series">Series</option>
-										<option value="movie">Movie</option>
-									</select>
-								</div>
-
-								<div>
-									<label class="label" for="ed-status">Status</label>
-									<select id="ed-status" bind:value={draftStatus} class="input">
-										<option value="Ongoing">Ongoing</option>
-										<option value="Completed">Completed</option>
-										<option value="Dropped">Dropped</option>
-									</select>
+								<div class="grid grid-cols-2 gap-3">
+									<div>
+										<label class="label" for="ed-type">Tipe</label>
+										<select id="ed-type" bind:value={draftType} class="input">
+											<option value="series">Series</option>
+											<option value="movie">Movie</option>
+										</select>
+									</div>
+									<div>
+										<label class="label" for="ed-status">Status</label>
+										<select id="ed-status" bind:value={draftStatus} class="input">
+											<option value="Ongoing">Ongoing</option>
+											<option value="Completed">Completed</option>
+											<option value="Dropped">Dropped</option>
+										</select>
+									</div>
 								</div>
 
 								<div>
@@ -571,9 +664,6 @@
 											<Icon name="close" class="w-4 h-4" />
 										</button>
 									</div>
-									<p class="mt-1.5 text-[11px] text-content-subtle">
-										Diisi manual. Kosongkan bila belum ada rating.
-									</p>
 								</div>
 
 								<div>
@@ -583,7 +673,8 @@
 											<button
 												type="button"
 												onclick={() => toggleDay(day)}
-												class="px-2.5 py-1.5 rounded-md text-[11px] font-medium border transition-colors
+												class="px-2.5 py-1.5 rounded-md text-[11px] font-medium border
+												       transition-colors
 												       {draftDays.includes(day)
 													? 'bg-accent text-accent-on border-accent'
 													: 'bg-surface-2 text-content-muted border-line hover:text-content'}"
@@ -597,12 +688,7 @@
 
 								<div>
 									<label class="label" for="ed-publish">Jadwalkan tayang</label>
-									<input
-										id="ed-publish"
-										bind:value={draftPublishAt}
-										type="datetime-local"
-										class="input"
-									/>
+									<input id="ed-publish" bind:value={draftPublishAt} type="datetime-local" class="input" />
 									<p class="mt-1.5 text-[11px] text-content-subtle">
 										Kosongkan untuk langsung tayang.
 									</p>
@@ -610,8 +696,8 @@
 							</section>
 						</div>
 
-						<!-- Column 2: text content -->
-						<div class="space-y-5">
+						<!-- Right: text + episodes -->
+						<div class="space-y-5 min-w-0">
 							<section class="card p-4">
 								<label class="label" for="ed-title">Judul</label>
 								<input id="ed-title" bind:value={draftTitle} type="text" class="input" />
@@ -619,8 +705,218 @@
 
 							<section class="card p-4">
 								<label class="label" for="ed-synopsis">Sinopsis</label>
-								<textarea id="ed-synopsis" bind:value={draftSynopsis} rows="14" class="input resize-y"
+								<textarea id="ed-synopsis" bind:value={draftSynopsis} rows="6" class="input resize-y"
 								></textarea>
+							</section>
+
+							<!--
+							  Episode manager.
+
+							  Designed for long series: search by number, 20 per page, one
+							  row per episode showing its number and mirror host, and a
+							  single expandable editor so 185 episodes stay navigable.
+							-->
+							<section class="card overflow-hidden">
+								<div class="flex flex-wrap items-center gap-2 p-3 border-b border-line">
+									<h2 class="text-sm font-semibold text-content">
+										Episode
+										<span class="text-content-subtle font-normal tabular-nums"
+											>({draftEpisodes.length})</span
+										>
+									</h2>
+
+									<div class="relative flex-1 min-w-[140px]">
+										<Icon
+											name="search"
+											class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle pointer-events-none"
+										/>
+										<input
+											type="search"
+											bind:value={episodeQuery}
+											placeholder="Cari nomor episode…"
+											aria-label="Cari episode"
+											class="input !pl-8 !py-1.5 !text-xs"
+										/>
+									</div>
+
+									<button
+										type="button"
+										onclick={sortEpisodes}
+										class="btn-secondary !text-xs !py-1.5"
+										title="Urutkan berdasarkan nomor episode"
+									>
+										<Icon name="sort-asc" class="w-3.5 h-3.5" />
+										Urutkan
+									</button>
+
+									<button type="button" onclick={addEpisode} class="btn-primary !text-xs !py-1.5">
+										<Icon name="plus" class="w-3.5 h-3.5" />
+										Tambah
+									</button>
+								</div>
+
+								{#if draftEpisodes.length === 0}
+									<div class="p-8 text-center">
+										<Icon name="list" class="w-6 h-6 mx-auto text-content-subtle mb-2" />
+										<p class="text-xs text-content-subtle">
+											Belum ada episode. Tekan Tambah untuk membuat yang pertama.
+										</p>
+									</div>
+								{:else if filteredEpisodes.length === 0}
+									<div class="p-8 text-center text-xs text-content-subtle">
+										Tidak ada episode yang cocok dengan "{episodeQuery}".
+									</div>
+								{:else}
+									<ul class="divide-y divide-line">
+										{#each episodePageItems as { e, index } (index)}
+											{@const isOpen = expandedEpisode === index}
+											{@const mirrorCount = e.servers.filter((s) => s.url.trim()).length}
+											<li>
+												<!-- Summary row: scannable at a glance -->
+												<button
+													type="button"
+													onclick={() => (expandedEpisode = isOpen ? null : index)}
+													class="w-full flex items-center gap-3 px-3 py-2.5 text-left
+													       hover:bg-surface-2 transition-colors"
+													aria-expanded={isOpen}
+												>
+													<Icon
+														name={isOpen ? 'chevron-down' : 'chevron-up'}
+														class="w-3.5 h-3.5 text-content-subtle flex-shrink-0
+														       {isOpen ? 'rotate-180' : '-rotate-90'}"
+													/>
+
+													<span class="w-16 flex-shrink-0 text-sm font-semibold text-content tabular-nums">
+														EP {e.ep || '—'}
+													</span>
+
+													<span class="flex-1 min-w-0 text-xs text-content-subtle truncate">
+														{#if mirrorCount === 0}
+															<span style="color: var(--warning)">Belum ada URL</span>
+														{:else}
+															{mirrorCount} server
+															{#if e.servers[0]?.url}
+																· {hostOf(e.servers[0].url)}
+															{/if}
+														{/if}
+													</span>
+
+													{#if mirrorCount > 1}
+														<span class="badge-neutral flex-shrink-0">{mirrorCount}</span>
+													{/if}
+												</button>
+
+												<!-- Expanded editor for this episode only -->
+												{#if isOpen}
+													<div class="px-3 pb-3 pt-1 bg-surface-2/40 space-y-2.5">
+														<div class="flex items-center gap-2">
+															<label class="label !mb-0 flex-shrink-0" for={`ep-num-${index}`}>
+																Nomor
+															</label>
+															<input
+																id={`ep-num-${index}`}
+																bind:value={e.ep}
+																type="text"
+																class="input !w-20 !py-1.5 !text-sm !text-center"
+															/>
+															<div class="flex-1"></div>
+															<button
+																type="button"
+																onclick={() => removeEpisode(index)}
+																class="btn-secondary !text-xs !py-1.5"
+																style="color: var(--critical)"
+															>
+																<Icon name="trash" class="w-3.5 h-3.5" />
+																Hapus episode
+															</button>
+														</div>
+
+														<div class="space-y-1.5">
+															{#each e.servers as server, si (si)}
+																<div class="flex gap-1.5 items-center">
+																	<label class="sr-only" for={`srv-name-${index}-${si}`}>
+																		Nama server {si + 1}
+																	</label>
+																	<input
+																		id={`srv-name-${index}-${si}`}
+																		bind:value={server.name}
+																		type="text"
+																		placeholder="Server"
+																		class="input !w-28 !py-1.5 !px-2 !text-xs"
+																	/>
+
+																	<label class="sr-only" for={`srv-url-${index}-${si}`}>
+																		URL server {si + 1}
+																	</label>
+																	<input
+																		id={`srv-url-${index}-${si}`}
+																		bind:value={server.url}
+																		type="text"
+																		placeholder="https://ok.ru/videoembed/…"
+																		class="input !py-1.5 !px-2 !text-xs flex-1 min-w-0"
+																	/>
+
+																	{#if e.servers.length > 1}
+																		<button
+																			type="button"
+																			onclick={() => removeServer(index, si)}
+																			class="btn-icon !w-7 !h-7 flex-shrink-0"
+																			aria-label="Hapus server"
+																		>
+																			<Icon name="close" class="w-3 h-3" />
+																		</button>
+																	{/if}
+																</div>
+															{/each}
+														</div>
+
+														<button
+															type="button"
+															onclick={() => addServer(index)}
+															class="w-full py-1.5 rounded-md border border-dashed border-line
+															       text-[11px] text-content-subtle hover:text-accent
+															       hover:border-accent transition-colors"
+														>
+															+ Tambah server (mirror)
+														</button>
+													</div>
+												{/if}
+											</li>
+										{/each}
+									</ul>
+
+									<!-- Episode paging -->
+									{#if totalEpisodePages > 1}
+										<div
+											class="flex items-center justify-between gap-2 px-3 py-2.5 border-t border-line"
+										>
+											<button
+												type="button"
+												onclick={() => (episodePage = Math.max(1, episodePage - 1))}
+												disabled={episodePage === 1}
+												class="btn-secondary !text-xs !py-1.5"
+											>
+												<Icon name="arrow-left" class="w-3.5 h-3.5" />
+												Sebelumnya
+											</button>
+
+											<span class="text-[11px] text-content-subtle tabular-nums">
+												Halaman {episodePage} / {totalEpisodePages}
+											</span>
+
+											<button
+												type="button"
+												onclick={() =>
+													(episodePage = Math.min(totalEpisodePages, episodePage + 1))}
+												disabled={episodePage === totalEpisodePages}
+												class="btn-secondary !text-xs !py-1.5"
+											>
+												Selanjutnya
+												<Icon name="arrow-right" class="w-3.5 h-3.5" />
+											</button>
+										</div>
+									{/if}
+								{/if}
 							</section>
 
 							<section class="card p-4">
@@ -642,130 +938,13 @@
 								{/if}
 							</section>
 						</div>
-
-						<!-- Column 3: episodes -->
-						<div class="space-y-3">
-							<div class="flex items-center justify-between">
-								<h2 class="text-sm font-semibold text-content">
-									Episode <span class="text-content-subtle tabular-nums">({draftEpisodes.length})</span>
-								</h2>
-								<button type="button" onclick={addEpisode} class="btn-secondary !text-xs !py-1.5">
-									<Icon name="plus" class="w-3.5 h-3.5" />
-									Tambah
-								</button>
-							</div>
-
-							<div class="space-y-2.5 max-h-[620px] overflow-y-auto scroll-thin pr-1">
-								{#each [...draftEpisodes].map((e, i) => ({ e, i })).reverse() as { e, i } (i)}
-									<div class="card p-3">
-										<div class="flex items-center gap-2 mb-2.5">
-											<div class="flex flex-col gap-0.5">
-												<button
-													type="button"
-													onclick={() => moveEpisode(i, -1)}
-													disabled={i === 0}
-													class="text-content-subtle hover:text-content disabled:opacity-30"
-													aria-label="Naikkan"
-												>
-													<Icon name="chevron-up" class="w-3 h-3" />
-												</button>
-												<button
-													type="button"
-													onclick={() => moveEpisode(i, 1)}
-													disabled={i === draftEpisodes.length - 1}
-													class="text-content-subtle hover:text-content disabled:opacity-30"
-													aria-label="Turunkan"
-												>
-													<Icon name="chevron-down" class="w-3 h-3" />
-												</button>
-											</div>
-
-											<label class="sr-only" for={`ep-${i}`}>Nomor episode</label>
-											<input
-												id={`ep-${i}`}
-												bind:value={e.ep}
-												type="text"
-												placeholder="No."
-												class="input !w-16 !py-1.5 !px-2 !text-center !text-sm"
-											/>
-
-											<div class="flex-1"></div>
-
-											<button
-												type="button"
-												onclick={() => removeEpisode(i)}
-												class="btn-icon !w-7 !h-7"
-												aria-label="Hapus episode"
-												style="color: var(--critical)"
-											>
-												<Icon name="trash" class="w-3.5 h-3.5" />
-											</button>
-										</div>
-
-										<div class="space-y-1.5">
-											{#each e.servers as server, si (si)}
-												<div class="flex gap-1.5">
-													<label class="sr-only" for={`srv-name-${i}-${si}`}>Nama server</label>
-													<input
-														id={`srv-name-${i}-${si}`}
-														bind:value={server.name}
-														type="text"
-														placeholder="Server"
-														class="input !w-24 !py-1.5 !px-2 !text-xs"
-													/>
-													<label class="sr-only" for={`srv-url-${i}-${si}`}>URL server</label>
-													<input
-														id={`srv-url-${i}-${si}`}
-														bind:value={server.url}
-														type="text"
-														placeholder="https://…"
-														class="input !py-1.5 !px-2 !text-xs flex-1 min-w-0"
-													/>
-													{#if e.servers.length > 1}
-														<button
-															type="button"
-															onclick={() => removeServer(i, si)}
-															class="btn-icon !w-7 !h-7 flex-shrink-0"
-															aria-label="Hapus server"
-														>
-															<Icon name="close" class="w-3 h-3" />
-														</button>
-													{/if}
-												</div>
-											{/each}
-										</div>
-
-										<button
-											type="button"
-											onclick={() => addServer(i)}
-											class="mt-2 w-full py-1.5 rounded-md border border-dashed border-line
-											       text-[11px] text-content-subtle hover:text-accent hover:border-accent
-											       transition-colors"
-										>
-											+ Tambah server
-										</button>
-									</div>
-								{/each}
-
-								{#if draftEpisodes.length === 0}
-									<div class="card p-6 text-center text-xs text-content-subtle">
-										Belum ada episode.
-									</div>
-								{/if}
-							</div>
-						</div>
 					</div>
 				{:else}
 					<!-- ---------- Catalogue list ---------- -->
 					<div class="flex items-center justify-between mb-6">
 						<h1 class="font-display text-lg font-semibold text-content">Katalog</h1>
 						<div class="flex items-center gap-2">
-							<button
-								type="button"
-								onclick={reload}
-								class="btn-secondary !px-2.5"
-								aria-label="Muat ulang"
-							>
+							<button type="button" onclick={reload} class="btn-secondary !px-2.5" aria-label="Muat ulang">
 								<Icon name="refresh" class="w-4 h-4" />
 							</button>
 							<button type="button" onclick={() => openEditor()} class="btn-primary">
@@ -775,7 +954,6 @@
 						</div>
 					</div>
 
-					<!-- Stats -->
 					<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
 						{#each [{ label: 'Judul', value: stats.titles, icon: 'grid' }, { label: 'Episode', value: stats.episodes, icon: 'list' }, { label: 'Movie', value: stats.movies, icon: 'film' }, { label: 'Total tayangan', value: stats.views, icon: 'eye' }] as s (s.label)}
 							<div class="card p-3.5">
@@ -790,7 +968,6 @@
 						{/each}
 					</div>
 
-					<!-- Search -->
 					<div class="relative mb-5 max-w-sm">
 						<Icon
 							name="search"
@@ -814,7 +991,7 @@
 						</div>
 					{:else}
 						<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-							{#each filtered as item (item.id)}
+							{#each listPageItems as item (item.id)}
 								<article class="card overflow-hidden group">
 									<div class="relative aspect-[2/3] bg-surface-2">
 										<img
@@ -824,9 +1001,8 @@
 											loading="lazy"
 										/>
 
-										<!-- Actions appear on hover/focus so the grid stays readable. -->
 										<div
-											class="absolute inset-0 bg-surface-0/80 opacity-0 group-hover:opacity-100
+											class="absolute inset-0 bg-surface-0/85 opacity-0 group-hover:opacity-100
 											       focus-within:opacity-100 transition-opacity flex flex-col
 											       items-center justify-center gap-2"
 										>
@@ -858,7 +1034,9 @@
 										<h3 class="text-[13px] font-medium text-content line-clamp-2" title={item.title}>
 											{item.title}
 										</h3>
-										<div class="mt-1.5 flex items-center justify-between text-[11px] text-content-subtle">
+										<div
+											class="mt-1.5 flex items-center justify-between text-[11px] text-content-subtle"
+										>
 											<span class="tabular-nums">{item.episodes?.length || 0} EP</span>
 											{#if item.rating}
 												<span
@@ -874,6 +1052,33 @@
 								</article>
 							{/each}
 						</div>
+
+						<!-- Catalogue paging: a large library no longer renders one huge grid -->
+						{#if totalListPages > 1}
+							<div class="flex items-center justify-center gap-2 mt-6">
+								<button
+									type="button"
+									onclick={() => (listPage = Math.max(1, listPage - 1))}
+									disabled={listPage === 1}
+									class="btn-secondary !text-xs !py-1.5"
+								>
+									<Icon name="arrow-left" class="w-3.5 h-3.5" />
+									Sebelumnya
+								</button>
+								<span class="text-xs text-content-subtle tabular-nums">
+									{listPage} / {totalListPages}
+								</span>
+								<button
+									type="button"
+									onclick={() => (listPage = Math.min(totalListPages, listPage + 1))}
+									disabled={listPage === totalListPages}
+									class="btn-secondary !text-xs !py-1.5"
+								>
+									Selanjutnya
+									<Icon name="arrow-right" class="w-3.5 h-3.5" />
+								</button>
+							</div>
+						{/if}
 					{/if}
 				{/if}
 			{/if}
@@ -912,17 +1117,15 @@
 							onchange={restoreBackup}
 							class="sr-only"
 						/>
-						<label for="backup-file" class="btn-secondary w-full cursor-pointer">
-							Pilih berkas
-						</label>
+						<label for="backup-file" class="btn-secondary w-full cursor-pointer">Pilih berkas</label>
 					</section>
 				</div>
 
 				<div class="mt-4 max-w-3xl flex items-start gap-2.5 rounded-lg border border-line bg-surface-1 p-3.5">
 					<Icon name="info" class="w-4 h-4 text-content-subtle flex-shrink-0 mt-px" />
 					<p class="text-xs leading-relaxed text-content-muted">
-						Cadangan hanya berisi katalog dan episode. Komentar, akun, dan statistik tidak termasuk
-						karena fitur tersebut tidak ada di aplikasi ini.
+						Cadangan hanya berisi katalog dan episode. Tidak ada komentar, akun, atau statistik karena
+						fitur tersebut tidak ada di aplikasi ini.
 					</p>
 				</div>
 			{/if}

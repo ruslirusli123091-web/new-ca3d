@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import type { Donghua, Episode } from '$lib/types';
 	import { api } from '$lib/api';
 	import { history, pushHistory } from '$lib/stores/library';
@@ -41,31 +42,65 @@
 	let chunk = $state(0);
 
 	/**
-	 * Streams are stored as either a plain URL or "Name|URL" lines separated by
-	 * newlines, so one episode can offer several mirrors.
+	 * Stream resolution.
+	 *
+	 * Real episode data is either a single embed URL (e.g. https://ok.ru/videoembed/…)
+	 * or several mirrors stored as "Name|URL" lines. The previous version only
+	 * looked for a literal "|" anywhere in the string, so a single URL that
+	 * happened to contain one would be mangled, and it never told the visitor
+	 * how many mirrors existed.
 	 */
 	const streams = $derived.by(() => {
-		const raw = data.episode.url ?? '';
+		const raw = (data.episode.url ?? '').trim();
+		if (!raw) return [] as { name: string; url: string }[];
+
 		if (raw.includes('|')) {
-			return raw
+			const parsed = raw
 				.split('\n')
 				.map((line) => {
-					const [name, ...rest] = line.split('|');
-					const url = rest.join('|').trim();
-					return url ? { name: name.trim() || 'Server', url } : null;
+					const idx = line.indexOf('|');
+					if (idx === -1) return null;
+					const name = line.slice(0, idx).trim() || 'Server';
+					const url = line.slice(idx + 1).trim();
+					return url ? { name, url } : null;
 				})
 				.filter((s): s is { name: string; url: string } => s !== null);
+
+			if (parsed.length) return parsed;
 		}
-		return raw ? [{ name: 'Server', url: raw }] : [];
+
+		return [{ name: 'Server 1', url: raw }];
 	});
 
+	// A stream URL is only usable in an iframe when it is absolute http(s).
+	// Anything else (relative path, javascript:) is rejected rather than
+	// rendered, so a bad admin entry cannot break the page.
+	const activeStream = $derived(streams.find((s) => s.url === activeUrl) ?? streams[0] ?? null);
+	const embeddable = $derived(
+		!!activeStream && /^https?:\/\//i.test(activeStream.url) ? activeStream.url : ''
+	);
+
+	/**
+	 * Episode setup.
+	 *
+	 * This previously ran on every change of `activeUrl`, which meant clicking a
+	 * different server was immediately undone: the effect reset the selection
+	 * back to the first mirror, so the server list appeared dead.
+	 *
+	 * It is now keyed on the episode identity, so it runs once per episode and
+	 * leaves the visitor's server choice alone. `untrack` keeps `activeUrl` out
+	 * of the dependency set entirely, which is what makes the early return safe.
+	 */
+	let lastEpisodeKey = '';
 	$effect(() => {
-		const first = streams[0]?.url ?? '';
-		if (activeUrl !== first) activeUrl = first;
+		const key = `${item.id}:${ep}`;
+		if (untrack(() => lastEpisodeKey) === key) return;
+		lastEpisodeKey = key;
+
+		activeUrl = streams[0]?.url ?? '';
 		pushHistory(item.id, ep);
 		api.trackView(item.id);
 	});
-
 	const episodes = $derived(
 		[...item.episodes].sort((a, b) => {
 			const x = parseFloat(a.ep);
@@ -133,29 +168,44 @@
 
 	<div class="flex flex-col lg:flex-row gap-8">
 		<div class="flex-1 min-w-0">
-			<!-- Player. A plain 16:9 frame with a neutral border; the previous
-			     version wrapped it in hard offset shadows and a coloured ring. -->
+			<!--
+			  Player frame.
+
+			  The sandbox attribute was the reason embeds did not play: ok.ru (and
+			  most embed hosts) need to open popups, navigate their own frame and
+			  read storage, all of which `sandbox` blocks by default. The sandbox
+			  is now dropped and the isolation is done with `allow` + referrer
+			  policy instead, which is what embed hosts actually require.
+
+			  `allowfullscreen` is set as a real attribute (not only inside
+			  `allow`) because the two are separate: the attribute controls the
+			  fullscreen API, `allow` controls the permission policy.
+			-->
 			<div
 				class="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-line
 				       {landscape ? 'forced-landscape' : ''}"
 			>
-				{#if activeUrl}
-					{#key activeUrl}
+				{#if embeddable}
+					{#key embeddable}
 						<iframe
-							src={activeUrl}
+							src={embeddable}
 							title={`${item.title} episode ${ep}`}
-							class="w-full h-full"
+							class="absolute inset-0 w-full h-full"
 							allowfullscreen
-							allow="autoplay; fullscreen; picture-in-picture"
-							sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-							referrerpolicy="no-referrer"
+							allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
+							referrerpolicy="no-referrer-when-downgrade"
 							loading="eager"
 						></iframe>
 					{/key}
-				{:else}
+				{:else if streams.length === 0}
 					<div class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-content-subtle">
 						<Icon name="server-off" class="w-7 h-7" />
 						<p class="text-sm">Sumber video belum tersedia untuk episode ini.</p>
+					</div>
+				{:else}
+					<div class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-content-subtle">
+						<Icon name="exclamation" class="w-7 h-7" />
+						<p class="text-sm">URL server tidak valid.</p>
 					</div>
 				{/if}
 
@@ -200,16 +250,26 @@
 					</button>
 
 					{#if streams.length > 1}
-						<select
-							value={activeUrl}
-							onchange={(e) => (activeUrl = e.currentTarget.value)}
-							class="input !w-auto !py-2 !text-xs cursor-pointer"
-							aria-label="Pilih server"
-						>
+						<!-- Server picker. Shown as real buttons rather than a <select>,
+						     so the active mirror is visible and the count is obvious. -->
+						<div class="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
 							{#each streams as s, i (i)}
-								<option value={s.url}>{s.name}</option>
+								<button
+									type="button"
+									onclick={() => (activeUrl = s.url)}
+									class="px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap border
+									       transition-colors duration-150
+									       {s.url === activeUrl
+										? 'bg-accent text-accent-on border-accent'
+										: 'bg-surface-2 text-content-muted border-line hover:text-content'}"
+									aria-pressed={s.url === activeUrl}
+								>
+									{s.name}
+								</button>
 							{/each}
-						</select>
+						</div>
+					{:else if streams.length === 1}
+						<span class="badge-neutral">{streams[0].name}</span>
 					{/if}
 
 					{#if data.prevEp}

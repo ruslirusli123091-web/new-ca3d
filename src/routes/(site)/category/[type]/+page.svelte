@@ -67,7 +67,7 @@
 					<p class="text-sm text-content-muted">Belum ada judul untuk kategori ini.</p>
 				</div>
 			{:else}
-				<div id="category-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 scroll-mt-20">
+				<div id="category-grid" class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4 scroll-mt-20">
 					{#each pageItems as item (item.id)}
 						<MovieCard {item} />
 					{/each}
