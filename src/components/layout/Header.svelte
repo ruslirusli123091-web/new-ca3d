@@ -287,7 +287,13 @@
 		</div>
 
 		<!-- Actions -->
-		<div class="flex items-center gap-0.5 ml-auto md:ml-0">
+		<!--
+		  Action buttons.
+		  `gap-2` on touch screens: five 36px icon buttons at gap-0.5 (2px) sat
+		  almost flush against each other, which made them easy to mis-tap. The
+		  row is right-aligned so the extra width grows to the left.
+		-->
+		<div class="flex items-center gap-2 sm:gap-1.5 ml-auto md:ml-0">
 			<!-- Theme picker -->
 			<div class="relative">
 				<button

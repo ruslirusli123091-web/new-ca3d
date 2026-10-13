@@ -164,7 +164,7 @@
 					<!-- Text column: min-height is set in CSS so the panel height is
 					     identical for every slide. -->
 					<div class="hero-text text-center sm:text-left">
-						<span class="badge-accent mb-3 self-center sm:self-start">Baru ditambahkan</span>
+						<span class="badge-accent mb-1.5 sm:mb-3 self-start">Baru ditambahkan</span>
 
 						<h1
 							class="font-display text-xl sm:text-2xl md:text-3xl font-bold leading-tight
@@ -175,7 +175,7 @@
 
 						<!-- Metadata on its own inset panel so it never sits directly
 						     on the artwork. -->
-						<div class="hero-meta mt-3.5">
+						<div class="hero-meta mt-2 sm:mt-3.5">
 							{#if current.rating}
 								<span
 									class="inline-flex items-center gap-1 font-semibold tabular-nums"
@@ -199,16 +199,20 @@
 							{/if}
 						</div>
 
-						<div class="mt-4 flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+						<div class="mt-3 sm:mt-4 flex items-center gap-2">
 							<button
 								type="button"
 								onclick={() => goto(`/watch/${current.id}/${getLatestEp(current.episodes)}`)}
-								class="btn-primary"
+								class="btn-primary !px-3 !py-2 !text-xs sm:!px-4 sm:!py-2.5 sm:!text-sm"
 							>
-								<Icon name="play" class="w-4 h-4" />
+								<Icon name="play" class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
 								Tonton sekarang
 							</button>
-							<a href={`/synopsis/${current.id}`} class="btn-secondary">Detail</a>
+							<a
+								href={`/synopsis/${current.id}`}
+								class="btn-secondary !px-3 !py-2 !text-xs sm:!px-4 sm:!py-2.5 sm:!text-sm"
+								>Detail</a
+							>
 						</div>
 					</div>
 					</div>
