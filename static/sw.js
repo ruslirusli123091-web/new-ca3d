@@ -91,7 +91,7 @@ self.addEventListener('fetch', (event) => {
 	if (url.origin !== self.location.origin) return;
 
 	// Never cache API responses or the admin panel.
-	if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin')) return;
+	if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ca3d')) return;
 
 	// Static build assets are immutable, so serve them from cache first.
 	if (url.pathname.startsWith('/_app/')) {

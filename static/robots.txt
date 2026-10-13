@@ -1,6 +1,6 @@
 User-agent: *
 Allow: /
-Disallow: /admin
+Disallow: /ca3d
 Disallow: /api/
 Disallow: /profile
 

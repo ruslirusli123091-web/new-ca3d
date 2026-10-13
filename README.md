@@ -14,7 +14,7 @@ untuk SEO, dan seluruh permukaan autentikasi publik sudah dihapus.
 | `/synopsis/:id` | Ya | Detail + daftar episode + JSON-LD |
 | `/watch/:id/:ep` | Ya | Player + navigasi episode + JSON-LD |
 | `/profile` | Ya | Koleksi lokal (bookmark, riwayat, nama) — `noindex` |
-| `/admin` | Ya | Satu-satunya halaman ber-login |
+| `/ca3d` | Ya | Satu-satunya halaman ber-login |
 
 ## Arsitektur tanpa akun user
 
@@ -188,7 +188,7 @@ node scripts/hash-password.mjs "PasswordPanjangDanUnik"
   Twitter Card.
 - **JSON-LD** di halaman detail (`TVSeries`/`Movie`) dan episode (`TVEpisode`).
 - `sitemap.xml` dinamis dari D1 (hanya item yang sudah tayang).
-- `robots.txt` mengizinkan halaman publik dan melarang `/api/`, `/admin`, `/profile`.
+- `robots.txt` mengizinkan halaman publik dan melarang `/api/`, `/ca3d`, `/profile`.
 - URL episode memakai `<a href>` dan `rel="prev"`/`rel="next"` supaya bisa di-crawl.
 
 ## Keamanan
