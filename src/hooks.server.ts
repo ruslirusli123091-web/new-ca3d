@@ -41,6 +41,21 @@ function buildCsp(dev: boolean): string {
 export const handle: Handle = async ({ event, resolve }) => {
 	const dev = event.url.hostname === 'localhost' || event.url.hostname === '127.0.0.1';
 
+	// `/geni/*` is an internal JSON transport used by the hydrated web app,
+	// not a browsable/public route. Every client-side request to it carries the
+	// marker below; an address-bar visit, normal link, crawler, or generic API
+	// client gets a real 404 before SvelteKit resolves the route. This applies to
+	// every future `/geni/` endpoint, not only `/geni/donghua`.
+	if (event.url.pathname.startsWith('/geni/') && event.request.headers.get('X-CA3D-App') !== 'web') {
+		return new Response('Not Found', {
+			status: 404,
+			headers: {
+				...SECURITY_HEADERS,
+				'Cache-Control': 'no-store'
+			}
+		});
+	}
+
 	// Attach the admin session (if any) for load functions and endpoints.
 	const token = event.cookies.get(SESSION_COOKIE);
 	event.locals.session = await readSession(event.platform, token);

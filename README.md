@@ -72,7 +72,21 @@ atau komentar dari pengunjung.
 | `.env.example` | Template kosong | Di-push (aman) |
 | `.dev.vars` | Nilai asli untuk dev lokal | **Tidak di-push** (gitignored) |
 
-`.env` sudah dibuat dan berisi `SESSION_SECRET` yang digenerate otomatis.
+`.env` sudah dibuat dan berisi nilai lokal. File ini **rahasia** dan tidak boleh
+di-commit, di-upload, atau ditempel di chat.
+
+## `/geni/*` internal route
+
+Semua route di bawah `/geni/` diperlakukan sebagai transport internal aplikasi.
+Request langsung dari address bar, link, crawler, atau client tanpa header
+internal menerima `404` sebelum route diproses. Client web menambahkan:
+
+```http
+X-CA3D-App: web
+```
+
+Ini menyembunyikan route dari akses URL biasa, tetapi bukan pengganti WAF atau
+autentikasi: header HTTP bisa ditiru oleh scraper yang canggih.
 
 ## Jalankan lokal
 
@@ -123,7 +137,30 @@ Buka file `.env` di project ini dan import nilainya ke Cloudflare:
 npx wrangler pages secret put SESSION_SECRET
 npx wrangler pages secret put ADMIN_USERNAME
 npx wrangler pages secret put ADMIN_PASSWORD
+npx wrangler pages secret put VAPID_PUBLIC_KEY
+npx wrangler pages secret put VAPID_PRIVATE_KEY
+npx wrangler pages secret put VAPID_SUBJECT
 ```
+
+### VAPID Web Push
+
+```text
+VAPID_PUBLIC_KEY   = boleh terlihat di frontend (public key)
+VAPID_PRIVATE_KEY  = WAJIB secret, jangan pernah masuk bundle/frontend
+VAPID_SUBJECT      = contact, misalnya mailto:admin@ca3d.site
+```
+
+`VAPID_PUBLIC_KEY` memang harus dikirim ke browser agar perangkat bisa
+berlangganan push. Itu **bukan password**. Sebaliknya, `VAPID_PRIVATE_KEY`
+adalah kunci signing dan harus hanya berada di Cloudflare Secret. Jika private
+key pernah dibagikan atau masuk Git, generate pasangan baru:
+
+```bash
+node scripts/generate-vapid-keys.mjs
+```
+
+Set ketiga hasilnya di Cloudflare Production secrets. Untuk `.env`/`.dev.vars`
+lokal, file tetap gitignored dan tidak boleh di-push.
 
 Untuk dev lokal, salin `.env` menjadi `.dev.vars`.
 
