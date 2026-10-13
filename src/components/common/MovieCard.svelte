@@ -2,7 +2,6 @@
 	import type { Donghua } from '$lib/types';
 	import { api } from '$lib/api';
 	import { getOptimizedImageUrl, getLatestEp, generateSrcSet } from '$lib/utils/helpers';
-	import { goto } from '$app/navigation';
 	import Icon from './Icon.svelte';
 
 	interface Props {
@@ -14,35 +13,25 @@
 	const latestEp = $derived(getLatestEp(item.episodes));
 
 	/**
-	 * Navigates straight to the synopsis page on a single click/tap.
-	 *
-	 * The previous version required two taps on touch devices (first tap only
-	 * revealed the play overlay), which felt broken. The play overlay is now
-	 * shown on press via CSS only, so a single tap both shows the feedback and
-	 * navigates.
+	 * Track views without holding up navigation. The old button awaited the
+	 * `/api/view` request before calling `goto()`, so a slow API, a cold Worker,
+	 * or a mobile network made the first tap appear to do nothing. A real anchor
+	 * gives the browser/SvelteKit an immediate navigation path; analytics is
+	 * deliberately fire-and-forget.
 	 */
-	let pressed = $state(false);
-	let navigating = $state(false);
-
-	async function open() {
-		if (navigating) return;
-		navigating = true;
-		try {
-			await api.trackView(item.id);
-		} catch {
-			/* a failed view count must not block navigation */
-		}
-		await goto(`/synopsis/${item.id}`);
+	function trackView() {
+		void api.trackView(item.id);
 	}
 </script>
 
 <article class="group h-full">
-	<button
-		type="button"
-		onclick={open}
+	<a
+		href={`/synopsis/${item.id}`}
+		onclick={trackView}
 		class="movie-card flex flex-col h-full w-full text-left rounded-xl overflow-hidden
 		       bg-surface-0 transition-all duration-200 ease-smooth"
 		aria-label={`Lihat ${item.title}`}
+		aria-describedby={`movie-${item.id}`}
 	>
 		<div class="relative aspect-[2/3] overflow-hidden bg-surface-2">
 			<img
@@ -63,7 +52,7 @@
 			  :active press state), so a single tap both shows the feedback and
 			  navigates — no two-step interaction.
 			-->
-			<div class="card-play-overlay" data-visible={pressed} aria-hidden="true">
+			<div class="card-play-overlay" aria-hidden="true">
 				<span class="card-play-button">
 					<Icon name="play" class="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" />
 				</span>
@@ -92,6 +81,7 @@
 		</div>
 
 		<div class="p-1.5 sm:p-2.5 flex-1 flex flex-col">
+			<span id={`movie-${item.id}`} class="sr-only">Buka halaman detail</span>
 			<h3
 				class="text-[11px] sm:text-[13px] font-medium leading-snug text-content line-clamp-2
 				       group-hover:text-accent transition-colors duration-150"
@@ -121,6 +111,5 @@
 				<span class="tabular-nums">{(item.views || 0).toLocaleString('id-ID')}</span>
 			</div>
 		</div>
-	</button>
+	</a>
 </article>
-
