@@ -15,7 +15,9 @@
 		"db:cleanup:local": "wrangler d1 execute ca3d-db --local --file=./migrations/001-drop-legacy-tables.sql",
 		"db:cleanup:remote": "wrangler d1 execute ca3d-db --remote --file=./migrations/001-drop-legacy-tables.sql",
 		"db:add-rating:local": "wrangler d1 execute ca3d-db --local --file=./migrations/002-add-rating.sql",
-		"db:add-rating:remote": "wrangler d1 execute ca3d-db --remote --file=./migrations/002-add-rating.sql"
+		"db:add-rating:remote": "wrangler d1 execute ca3d-db --remote --file=./migrations/002-add-rating.sql",
+		"db:add-ratelimit:local": "wrangler d1 execute ca3d-db --local --file=./migrations/003-add-rate-limits.sql",
+		"db:add-ratelimit:remote": "wrangler d1 execute ca3d-db --remote --file=./migrations/003-add-rate-limits.sql"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-cloudflare": "^7.2.9",

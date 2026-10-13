@@ -45,3 +45,14 @@ CREATE TABLE IF NOT EXISTS audit_log (
 	detail    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log (ts DESC);
+
+-- Distributed rate limiting -------------------------------------------------
+-- Cloudflare runs a Worker across many isolates, each with its own memory, so
+-- an in-memory counter never accumulates and the limit is never enforced.
+-- This table is the shared counter that every isolate increments atomically.
+CREATE TABLE IF NOT EXISTS rate_limits (
+	key          TEXT PRIMARY KEY,
+	window_start INTEGER NOT NULL,
+	count        INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_window ON rate_limits (window_start);
