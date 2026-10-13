@@ -4,7 +4,13 @@
 	import { page } from '$app/stores';
 	import type { Donghua } from '$lib/types';
 	import { getOptimizedImageUrl } from '$lib/utils/helpers';
-	import { themeColor, themeMode, THEMES } from '$lib/stores/theme';
+	import {
+		themeColor,
+		themeMode,
+		THEMES,
+		setThemeColor,
+		setThemeMode
+	} from '$lib/stores/theme';
 	import Icon from '$components/common/Icon.svelte';
 
 	interface Props {
@@ -317,7 +323,7 @@
 								<button
 									type="button"
 									onclick={() => {
-										$themeColor = t.id;
+										setThemeColor(t.id);
 										themeMenuOpen = false;
 									}}
 									class="w-7 h-7 rounded-full transition-transform hover:scale-110
@@ -337,7 +343,7 @@
 						<div class="flex gap-1.5 p-0.5 rounded-lg bg-surface-1">
 							<button
 								type="button"
-								onclick={() => ($themeMode = 'dark')}
+								onclick={() => setThemeMode('dark')}
 								class="flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors
 								       {$themeMode === 'dark'
 									? 'bg-surface-3 text-content'
@@ -347,7 +353,7 @@
 							</button>
 							<button
 								type="button"
-								onclick={() => ($themeMode = 'light')}
+								onclick={() => setThemeMode('light')}
 								class="flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors
 								       {$themeMode === 'light'
 									? 'bg-surface-3 text-content'

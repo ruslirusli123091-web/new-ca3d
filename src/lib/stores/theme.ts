@@ -2,11 +2,23 @@ import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
 
 /**
- * Theme = one accent colour + a light/dark mode. Both are stored locally and
- * applied by setting `data-theme` on <html>, which swaps the CSS variables in
- * app.css. Nothing here is decorative: each theme only changes the accent and
- * the surface palette.
+ * Theme = one accent colour + a light/dark mode.
+ *
+ * Persistence notes (this was previously broken):
+ *
+ * `writable('slate')` fires its subscriber immediately with the default value.
+ * Because the subscriber wrote to localStorage, it overwrote the visitor's
+ * saved theme with 'slate' on every page load, so the choice never survived a
+ * refresh.
+ *
+ * Two changes fix that:
+ *   1. The stores are initialised FROM localStorage, so the first subscriber
+ *      call already carries the saved value.
+ *   2. Persistence happens only inside the setters, never in a subscriber.
  */
+
+const THEME_IDS = ['slate', 'ocean', 'forest', 'amber'] as const;
+
 export const THEMES = [
 	{ id: 'slate', label: 'Slate', swatch: '#5b8def' },
 	{ id: 'ocean', label: 'Ocean', swatch: '#22d3ee' },
@@ -14,18 +26,41 @@ export const THEMES = [
 	{ id: 'amber', label: 'Amber', swatch: '#f0b429' }
 ] as const;
 
-export const themeColor = writable<string>('slate');
-export const themeMode = writable<'dark' | 'light'>('dark');
+function readStoredColor(): string {
+	if (!browser) return 'slate';
+	try {
+		const saved = localStorage.getItem('themeColor');
+		return THEME_IDS.includes(saved as (typeof THEME_IDS)[number]) ? (saved as string) : 'slate';
+	} catch {
+		return 'slate';
+	}
+}
 
-function applied(color: string, mode: string) {
+function readStoredMode(): 'dark' | 'light' {
+	if (!browser) return 'dark';
+	try {
+		return localStorage.getItem('themeMode') === 'light' ? 'light' : 'dark';
+	} catch {
+		return 'dark';
+	}
+}
+
+export const themeColor = writable<string>(readStoredColor());
+export const themeMode = writable<'dark' | 'light'>(readStoredMode());
+
+/** The value used for the `data-theme` attribute on <html>. */
+export function appliedTheme(color: string, mode: string): string {
 	return mode === 'light' ? `${color}-light` : color;
 }
 
-function apply() {
+/** Write the theme to the document and to localStorage. */
+export function persistTheme(): void {
 	if (!browser) return;
 	const color = get(themeColor);
 	const mode = get(themeMode);
-	document.documentElement.setAttribute('data-theme', applied(color, mode));
+
+	document.documentElement.setAttribute('data-theme', appliedTheme(color, mode));
+
 	try {
 		localStorage.setItem('themeColor', color);
 		localStorage.setItem('themeMode', mode);
@@ -34,19 +69,31 @@ function apply() {
 	}
 }
 
-themeColor.subscribe(apply);
-themeMode.subscribe(apply);
+/** Change the accent colour. Persists immediately. */
+export function setThemeColor(color: string): void {
+	if (!THEME_IDS.includes(color as (typeof THEME_IDS)[number])) return;
+	themeColor.set(color);
+	persistTheme();
+}
 
-export function applyStoredTheme() {
+/** Change light/dark mode. Persists immediately. */
+export function setThemeMode(mode: 'dark' | 'light'): void {
+	themeMode.set(mode);
+	persistTheme();
+}
+
+/**
+ * Re-apply the stored theme to the document.
+ *
+ * The inline script in app.html already does this before first paint; this is
+ * a safety net for when that script was blocked, and it must never write to
+ * storage or it would clobber the saved value.
+ */
+export function applyStoredTheme(): void {
 	if (!browser) return;
-	let color = 'slate';
-	let mode: 'dark' | 'light' = 'dark';
-	try {
-		color = localStorage.getItem('themeColor') || 'slate';
-		mode = localStorage.getItem('themeMode') === 'light' ? 'light' : 'dark';
-	} catch {
-		/* ignore */
-	}
+	const color = readStoredColor();
+	const mode = readStoredMode();
 	themeColor.set(color);
 	themeMode.set(mode);
+	document.documentElement.setAttribute('data-theme', appliedTheme(color, mode));
 }

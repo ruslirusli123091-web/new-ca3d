@@ -9,6 +9,8 @@
 	import SidebarButtons from '$components/common/SidebarButtons.svelte';
 	import Pagination from '$components/common/Pagination.svelte';
 	import Icon from '$components/common/Icon.svelte';
+	import TypingText from '$components/common/TypingText.svelte';
+	import Marquee from '$components/common/Marquee.svelte';
 
 	let { data }: { data: { donghua: Donghua[]; meta: Record<string, string> } } = $props();
 
@@ -164,53 +166,70 @@
 					<!-- Text column: min-height is set in CSS so the panel height is
 					     identical for every slide. -->
 					<div class="hero-text text-center sm:text-left">
-						<span class="badge-accent mb-1.5 sm:mb-3 self-start">Baru ditambahkan</span>
+						<span class="hero-badge mb-1.5 sm:mb-2 self-start">Baru ditambahkan</span>
 
+						<!--
+						  The heading carries the full title as its accessible name,
+						  while the visible text is animated by TypingText. Screen
+						  readers and crawlers therefore always get the whole title,
+						  not a half-typed string.
+						-->
 						<h1
-							class="font-display text-xl sm:text-2xl md:text-3xl font-bold leading-tight
-							       text-content line-clamp-2 hero-title"
+							class="font-display font-bold leading-tight text-content line-clamp-2 hero-title"
+							aria-label={current.title}
 						>
-							{current.title}
+							<TypingText text={current.title} />
 						</h1>
 
 						<!-- Metadata on its own inset panel so it never sits directly
 						     on the artwork. -->
-						<div class="hero-meta mt-2 sm:mt-3.5">
-							{#if current.rating}
-								<span
-									class="inline-flex items-center gap-1 font-semibold tabular-nums"
-									style="color: var(--warning)"
-								>
-									<Icon name="star" class="w-3.5 h-3.5" />
-									{current.rating.toFixed(1)}
-									<span class="text-content-subtle font-normal">/ 10</span>
+						<!--
+						  Metadata row.
+						  The number of items varies per slide (the rating is optional)
+						  and the text was clipped at narrow widths, so instead of
+						  shrinking the font further the row now scrolls like a TV
+						  advert ticker. Every item stays readable at any width.
+						-->
+						<div class="hero-meta mt-2 sm:mt-3">
+							<Marquee duration={18}>
+								<span class="marquee-inner">
+									{#if current.rating}
+										<span
+											class="inline-flex items-center gap-1 font-semibold tabular-nums"
+											style="color: var(--warning)"
+										>
+											<Icon name="star" class="w-3 h-3" />
+											{current.rating.toFixed(1)}
+											<span class="text-content-subtle font-normal">/ 10</span>
+										</span>
+									{/if}
+									{#if getLatestEp(current.episodes)}
+										<span class="text-content tabular-nums font-medium">
+											Episode {getLatestEp(current.episodes)}
+										</span>
+									{/if}
+									<span class="text-content-muted tabular-nums">
+										{(current.views || 0).toLocaleString('id-ID')} tayangan
+									</span>
+									{#if current.day}
+										<span class="text-content-muted">{current.day}</span>
+									{/if}
 								</span>
-							{/if}
-							{#if getLatestEp(current.episodes)}
-								<span class="text-content tabular-nums font-medium">
-									Episode {getLatestEp(current.episodes)}
-								</span>
-							{/if}
-							<span class="text-content-muted tabular-nums">
-								{(current.views || 0).toLocaleString('id-ID')} tayangan
-							</span>
-							{#if current.day}
-								<span class="text-content-muted">{current.day}</span>
-							{/if}
+							</Marquee>
 						</div>
 
 						<div class="mt-3 sm:mt-4 flex items-center gap-2">
 							<button
 								type="button"
 								onclick={() => goto(`/watch/${current.id}/${getLatestEp(current.episodes)}`)}
-								class="btn-primary !px-3 !py-2 !text-xs sm:!px-4 sm:!py-2.5 sm:!text-sm"
+								class="btn-primary !px-2.5 !py-1.5 !text-[11px] sm:!px-4 sm:!py-2.5 sm:!text-sm"
 							>
-								<Icon name="play" class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+								<Icon name="play" class="w-3 h-3 sm:w-4 sm:h-4" />
 								Tonton sekarang
 							</button>
 							<a
 								href={`/synopsis/${current.id}`}
-								class="btn-secondary !px-3 !py-2 !text-xs sm:!px-4 sm:!py-2.5 sm:!text-sm"
+								class="btn-secondary !px-2.5 !py-1.5 !text-[11px] sm:!px-4 sm:!py-2.5 sm:!text-sm"
 								>Detail</a
 							>
 						</div>
