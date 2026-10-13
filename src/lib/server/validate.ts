@@ -3,23 +3,11 @@ import type { Episode } from '$lib/types';
 /** Strip control characters and trim; clamp to a max length. */
 export function sanitizeText(input: unknown, maxLength = 2000): string {
 	if (typeof input !== 'string') return '';
-	// eslint-disable-next-line no-control-regex
-	const cleaned = input.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim();
+	const cleaned = input
+		// eslint-disable-next-line no-control-regex
+		.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+		.trim();
 	return cleaned.slice(0, maxLength);
-}
-
-/** Only allow a conservative username charset to prevent stored XSS / spoofing. */
-export function sanitizeUsername(input: unknown): string {
-	const s = sanitizeText(input, 32).toLowerCase();
-	return s.replace(/[^a-z0-9_.-]/g, '');
-}
-
-export function isValidUsername(username: string): boolean {
-	return /^[a-z0-9_.-]{3,32}$/.test(username);
-}
-
-export function isValidPassword(password: string): boolean {
-	return typeof password === 'string' && password.length >= 6 && password.length <= 128;
 }
 
 /** Block javascript:, data:, vbscript: URLs and enforce http(s). */
@@ -31,6 +19,7 @@ export function safeUrl(input: unknown): string {
 }
 
 const ALLOWED_DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu', 'Random'];
+
 export function sanitizeDays(input: unknown): string {
 	const raw = sanitizeText(input, 128);
 	return raw
@@ -71,6 +60,10 @@ export interface ValidatedDonghua {
 	episodes: Episode[];
 }
 
+/**
+ * Validate + normalise an admin-submitted catalogue item.
+ * Returns null when the entry is unusable (missing id or title).
+ */
 export function validateDonghua(input: unknown, now = Date.now()): ValidatedDonghua | null {
 	if (!input || typeof input !== 'object') return null;
 	const d = input as Record<string, unknown>;

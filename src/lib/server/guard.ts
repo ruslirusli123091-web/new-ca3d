@@ -6,14 +6,14 @@ import { error, tooMany } from './response';
 export interface GuardOptions {
 	/** Rate-limit bucket name (e.g. "auth", "write"). */
 	bucket: keyof typeof LIMITS;
-	/** Skip the automated-client heuristic (used for HTML-facing endpoints). */
+	/** Skip the automated-client heuristic (used for the HTML-facing endpoints). */
 	allowBots?: boolean;
 	/** Require same-origin (blocks cross-site abuse of cookie-authenticated writes). */
 	sameOrigin?: boolean;
 }
 
 /**
- * Runs the shared API guardrails in order:
+ * Shared API guardrails, applied in order:
  *   1. automated-client heuristic (anti-scraping / anti-bot)
  *   2. same-origin check (CSRF / cross-site write protection)
  *   3. rate limiting (anti brute-force / flooding)

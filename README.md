@@ -1,33 +1,48 @@
 # CA3D SvelteKit (Cloudflare Pages)
 
-Clone SvelteKit dari project React CA3D dengan UI dan route publik yang sama:
+Clone SvelteKit dari project React CA3D. Konten dirender **server-side (SSR)**
+untuk SEO, dan seluruh permukaan autentikasi publik sudah dihapus.
 
-- `/` — home/banner, rilis terbaru, movie, popular
-- `/category/series`, `/category/movie`
-- `/schedule`
-- `/synopsis/:id`
-- `/watch/:id/:ep`
-- `/profile` — koleksi lokal (bookmark, riwayat, nama tampilan)
-- `/admin` — satu-satunya halaman yang butuh login
+## Halaman
 
-## Tanpa akun user (by design)
+| Route | SSR | Catatan |
+|---|---|---|
+| `/` | Ya | Banner, rilis terbaru, movie, sidebar |
+| `/category/series` | Ya | Arsip series |
+| `/category/movie` | Ya | Arsip movie |
+| `/schedule` | Ya | Jadwal mingguan |
+| `/synopsis/:id` | Ya | Detail + daftar episode + JSON-LD |
+| `/watch/:id/:ep` | Ya | Player + navigasi episode + JSON-LD |
+| `/profile` | Ya | Koleksi lokal (bookmark, riwayat, nama) — `noindex` |
+| `/admin` | Ya | Satu-satunya halaman ber-login |
 
-Login/register member **sengaja dihapus**. Bookmark, riwayat tontonan, dan nama
-tampilan komentar disimpan di `localStorage` masing-masing pengunjung:
+## Arsitektur tanpa akun user
 
-- Tidak ada data pribadi yang tersimpan di server
-- Tidak ada endpoint login/register user yang bisa diserang (brute force,
-  credential stuffing, session hijacking) — permukaan serangan hilang
+Login/register member **tidak ada**. Bookmark, riwayat tontonan, dan nama
+tampilan disimpan di `localStorage` masing-masing pengunjung:
+
+- Tidak ada data pribadi tersimpan di server
+- Tidak ada endpoint kredensial publik yang bisa diserang
 - Tidak ada tabel `users` di D1
-- Setiap pengunjung bisa **backup/restore** koleksinya lewat halaman `/profile`
-  (export/import JSON), jadi pindah perangkat tetap mungkin tanpa akun
+- Pengunjung bisa backup/restore koleksinya lewat `/profile` (export/import JSON)
 
-Yang tetap butuh autentikasi hanya **admin panel**.
+Yang butuh autentikasi hanya **admin panel**, dan kredensialnya berasal dari
+**environment variable**, bukan database:
+
+| Variable | Fungsi |
+|---|---|
+| `ADMIN_USERNAME` | Nama login admin |
+| `ADMIN_PASSWORD` | Password admin (plain atau `pbkdf2$...`) |
+| `SESSION_SECRET` | Menandatangani cookie sesi admin (HMAC-SHA256) |
+
+Karena tidak ada tabel `admins`, dump database yang bocor **tidak mengekspos
+kredensial apa pun**.
 
 ## Jalankan lokal
 
 ```bash
 npm install
+npm run db:migrate:local      # buat tabel D1 lokal
 npm run dev
 ```
 
@@ -40,69 +55,110 @@ npm run preview
 
 ## Cloudflare Pages
 
-1. Buat Pages project dari repository/folder ini.
+1. Buat Pages project dari repository ini.
 2. Framework preset: **SvelteKit**.
 3. Build command: `npm run build`.
 4. Output directory: `.svelte-kit/cloudflare`.
-5. Pastikan file root `_headers` dan `_redirects` ikut ter-deploy.
-6. Buat D1 database lalu isi `database_id` pada `wrangler.jsonc`.
-7. Bind D1 dengan nama **DB** dan KV (opsional push notification) dengan nama **SUBSCRIPTIONS**.
-8. Jalankan migrasi:
+5. Buat D1 database, isi `database_id` di `wrangler.jsonc`.
+6. Bind D1 dengan nama **DB**; KV (opsional, push notification) sebagai **SUBSCRIPTIONS**.
+7. Jalankan migrasi:
 
 ```bash
-npx wrangler d1 execute ca3d-db --remote --file=./schema.sql
+npm run db:migrate:remote
 ```
 
-### Environment variables / secrets
+Jika database sudah pernah dibuat dengan schema lama:
 
-Set sebagai **Secrets**, bukan source code (lihat `.env.example`):
+```bash
+npm run db:cleanup:remote   # hapus tabel users/admins/comments/sessions
+```
+
+### Secrets
 
 ```bash
 npx wrangler pages secret put SESSION_SECRET
-npx wrangler pages secret put TURNSTILE_SECRET_KEY
-npx wrangler pages secret put TELEGRAM_BOT_TOKEN       # optional
-npx wrangler pages secret put TELEGRAM_CHAT_ID         # optional
+npx wrangler pages secret put ADMIN_USERNAME
+npx wrangler pages secret put ADMIN_PASSWORD
 ```
 
-Variable biasa di `wrangler.jsonc`:
+Atau untuk lokal, salin `.env.example` menjadi `.dev.vars` dan isi nilainya.
 
-- `SITE_URL` — domain publik, mis. `https://ca3d.site`
-- `TURNSTILE_SITE_KEY` — public key Turnstile; boleh kosong saat development
+`SESSION_SECRET` bisa digenerate dengan:
 
-Generate password admin yang aman:
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+Password admin boleh disimpan sebagai hash agar tidak plain text:
 
 ```bash
 node scripts/hash-password.mjs "PasswordPanjangDanUnik"
+# lalu set ADMIN_PASSWORD=pbkdf2$...
 ```
 
-Lalu masukkan hasilnya ke D1 (hash PBKDF2, jangan plain text):
+## SEO
 
-```sql
-INSERT OR REPLACE INTO admins (username, password)
-VALUES ('admin', 'pbkdf2$...');
-```
+- **SSR penuh untuk konten.** HTML yang dikirim server sudah berisi judul,
+  sinopsis, daftar episode, dan grid donghua — bukan shell kosong. Terverifikasi:
+  HTML home ±27 KB dengan konten nyata.
+- Halaman yang butuh interaksi (search, pagination, carousel) tetap dihidrasi
+  di klien setelah HTML pertama.
+- Meta lengkap per halaman: `<title>`, `description`, `canonical`, Open Graph,
+  Twitter Card.
+- **JSON-LD** di halaman detail (`TVSeries`/`Movie`) dan episode (`TVEpisode`).
+- `sitemap.xml` dinamis dari D1 (hanya item yang sudah tayang).
+- `robots.txt` mengizinkan halaman publik dan melarang `/api/`, `/admin`, `/profile`.
+- URL episode memakai `<a href>` dan `rel="prev"`/`rel="next"` supaya bisa di-crawl.
 
-## Proteksi keamanan yang tersedia
+## Keamanan
 
-- Session cookie admin `HttpOnly`, `Secure` (HTTPS), `SameSite=Lax`, signed HMAC-SHA256, TTL 7 hari.
-- Password admin PBKDF2-SHA256 120.000 iterasi + salt acak; legacy SHA-256 dimigrasikan saat login sukses.
-- **Tidak ada akun user**, sehingga tidak ada endpoint kredensial publik untuk diserang.
-- D1 prepared statements untuk semua query (tidak ada SQL concatenation dari input).
-- Rate limit per IP/bucket: auth, read, write, comment, view. Memakai binding Cloudflare Rate Limiting jika tersedia, dengan fallback sliding window per isolate.
-- Cloudflare Turnstile untuk login admin dan komentar jika secret dikonfigurasi.
-- Honeypot field untuk mendeteksi bot form (auth modal dan form komentar).
-- Deteksi User-Agent scraper dan larangan bulk JSON API untuk search crawler; halaman publik tetap SEO-friendly.
-- Validasi panjang/charset input, sanitasi URL, profanity filter, batas jumlah item/episode/komentar.
-- Nama tampilan komentar disanitasi (strip `<>"'`\\/`) dan bisa diblokir lewat ban list admin.
-- Same-origin guard untuk semua state-changing endpoint.
-- Security headers: CSP, HSTS (production), `X-Content-Type-Options`, frame protection, COOP, Referrer Policy, Permissions Policy, no-store API.
-- API tidak memakai CORS `*`, tidak menerima password admin di header/body, dan tidak mengekspos daftar hash admin.
-- Video iframe diberi sandbox + `referrerpolicy="no-referrer"`.
-- Sitemap dinamis dari D1 dan `robots.txt` yang melarang `/api`, `/admin`, `/profile`.
+**Autentikasi**
+- Kredensial admin dari env, bukan database.
+- Cookie sesi `HttpOnly`, `Secure`, `SameSite=Lax`, signed HMAC-SHA256, TTL 7 hari.
+- Perbandingan kredensial constant-time (tidak bisa ditebak lewat timing).
+- Password bisa PBKDF2-SHA256 120.000 iterasi + salt.
+- Audit log percobaan login admin (berhasil/gagal) di tabel `audit_log`.
 
-> Tidak ada sistem yang bisa menjamin “anti hacking 100%”. Aktifkan Cloudflare WAF, Bot Fight Mode/Super Bot Fight Mode, Rate Limiting Rules, Turnstile, dan 2FA pada akun Cloudflare untuk lapisan edge tambahan.
+**Rate limiting**
+- Binding Cloudflare Rate Limiting dipakai sebagai batas kasar terdistribusi.
+- Ditambah sliding window per-isolate yang menegakkan aturan per-bucket:
+  `auth` 8/5 menit, `read` 120/menit, `write` 30/menit, `view` 60/menit.
+- Terverifikasi: 8 percobaan login gagal, lalu `429`.
+
+**Anti-scraping / anti-bot**
+- User-Agent scraper (`python-requests`, `curl`, `Scrapy`, `axios`, dll) diblokir
+  dari API — terverifikasi `403`.
+- Crawler mesin pencari boleh mengambil HTML (SEO) tapi **tidak** API data massal.
+- API **tidak** memakai `Cache-Control: public`. Ini penting: cache edge yang
+  publik akan melayani respons sebelum Worker berjalan, sehingga penyerang bisa
+  memanaskan cache dengan request browser lalu scraping dengan client apa pun
+  dan melewati filter bot sepenuhnya. Sekarang `private, max-age=30`.
+
+**Validasi & injeksi**
+- Semua query D1 memakai prepared statement.
+- SQL injection pada `?id` terverifikasi aman (payload `OR '1'='1`,
+  `UNION SELECT`, `DROP TABLE` → `404`, tabel tetap utuh).
+- Sanitasi input: kontrol karakter dibuang, panjang dibatasi, charset ID dibatasi,
+  URL `javascript:`/`data:` diblokir, episode maksimal 5000, batch maksimal 20000.
+- Path traversal terverifikasi `404`.
+- Tanpa sesi admin, semua endpoint tulis mengembalikan `401`.
+
+**Transport & header**
+- CSP ketat (`script-src 'self'`, tanpa CDN script pihak ketiga).
+- HSTS di production, `nosniff`, `X-Frame-Options`, COOP, Referrer Policy,
+  Permissions Policy.
+- Same-origin guard untuk semua endpoint yang mengubah data — terverifikasi
+  request `Origin: https://evil-site.com` ditolak `403`.
+- Iframe player diberi `sandbox` dan `referrerpolicy="no-referrer"`.
+- API merespons dengan `no-store`.
+
+> Tidak ada sistem yang bisa menjamin "anti hacking 100%". Aktifkan juga WAF,
+> Bot Fight Mode / Super Bot Fight Mode, Rate Limiting Rules, dan 2FA akun
+> Cloudflare sebagai lapisan edge tambahan.
 
 ## Referensi backend lama
 
-Endpoint baru memakai `/api/*` pada Worker SvelteKit sendiri. `E:\ca3d\worker.js` dipakai sebagai referensi kontrak data D1 dan fitur (donghua, comments, views, banned users, notification), tetapi secret hardcoded dan CORS wildcard sengaja tidak dibawa ke clone baru. Endpoint `/api/member/*` juga dihapus karena akun user sudah tidak ada.
-
+`E:\ca3d\worker.js` dipakai sebagai referensi kontrak data D1 (donghua, views),
+tetapi secret hardcoded (token Telegram, VAPID private key, password admin) dan
+CORS wildcard sengaja tidak dibawa. Endpoint `/api/member/*`, `/api/chat`, dan
+`/api/users` dihapus karena akun user dan fitur komentar sudah tidak ada.

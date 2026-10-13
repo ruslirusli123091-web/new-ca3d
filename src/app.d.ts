@@ -39,8 +39,8 @@ declare namespace App {
 		env: {
 			DB: D1Database;
 			SESSION_SECRET?: string;
-			TURNSTILE_SECRET_KEY?: string;
-			TURNSTILE_SITE_KEY?: string;
+			ADMIN_USERNAME?: string;
+			ADMIN_PASSWORD?: string;
 			RATE_LIMITER?: RateLimiterBinding;
 			SUBSCRIPTIONS?: KVNamespace;
 			TELEGRAM_BOT_TOKEN?: string;

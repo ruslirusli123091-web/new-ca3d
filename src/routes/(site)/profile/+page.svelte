@@ -11,37 +11,33 @@
 		importLibrary
 	} from '$lib/stores/library';
 	import { getOptimizedImageUrl } from '$lib/utils/helpers';
-	import { updateSEO } from '$lib/seo';
 	import MovieCard from '$components/common/MovieCard.svelte';
 	import SidebarItem from '$components/common/SidebarItem.svelte';
 
-	let { data }: { data: Donghua[] } = $props();
+	let { data }: { data: { donghua: Donghua[]; meta: Record<string, string> } } = $props();
+
+	const catalogue = $derived(data.donghua ?? []);
 
 	let activeTab = $state<'bookmarks' | 'history'>('bookmarks');
 	let nameInput = $state('');
 	let importMsg = $state('');
 	let fileInput = $state<HTMLInputElement>();
 
-	$effect(() => {
-		updateSEO(
-			'Koleksi Saya',
-			'Bookmark dan riwayat tontonan Chinese Anime 3D tersimpan di browser kamu.'
-		);
-	});
-
 	// Keep the nickname input in sync with the stored value.
 	$effect(() => {
 		nameInput = $nickname;
 	});
 
-	const popularList = $derived([...data].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
-	const randomList = $derived([...data].sort(() => 0.5 - Math.random()).slice(0, 5));
+	const popularList = $derived(
+		[...catalogue].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5)
+	);
+	const randomList = $derived([...catalogue].sort(() => 0.5 - Math.random()).slice(0, 5));
 
-	const bookmarkedItems = $derived(data.filter((d) => $bookmarks.includes(d.id)));
+	const bookmarkedItems = $derived(catalogue.filter((d) => $bookmarks.includes(d.id)));
 	const historyList = $derived(
 		$history
 			.map((h) => {
-				const d = data.find((x) => x.id === h.id);
+				const d = catalogue.find((x) => x.id === h.id);
 				return d ? { ...d, watchedEp: h.ep } : null;
 			})
 			.filter(Boolean)

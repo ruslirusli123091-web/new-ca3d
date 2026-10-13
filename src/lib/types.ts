@@ -24,16 +24,6 @@ export interface Donghua {
 	status?: string;
 }
 
-export interface Chat {
-	id: string;
-	timestamp: number;
-	user: string;
-	text: string;
-	donghuaId: string;
-	ep: string;
-	rating?: number;
-}
-
 export interface HistoryItem {
 	id: string;
 	ep: string;

@@ -3,7 +3,6 @@
 	import { goto } from '$app/navigation';
 	import type { Donghua } from '$lib/types';
 	import { getOptimizedImageUrl, getLatestEp, generateSrcSet } from '$lib/utils/helpers';
-	import { updateSEO } from '$lib/seo';
 	import { search } from '$lib/stores/search';
 	import MovieCard from '$components/common/MovieCard.svelte';
 	import SidebarItem from '$components/common/SidebarItem.svelte';
@@ -12,7 +11,10 @@
 	import TypewriterText from '$components/common/TypewriterText.svelte';
 	import CountUp from '$components/common/CountUp.svelte';
 
-	let { data }: { data: Donghua[] } = $props();
+	let { data }: { data: { donghua: Donghua[]; meta: Record<string, string> } } = $props();
+
+	// Catalogue is server-rendered into the page; the client only filters/paginates it.
+	const catalogue = $derived(data.donghua ?? []);
 
 	let bannerIndex = $state(0);
 	let seriesPage = $state(1);
@@ -21,15 +23,8 @@
 	const itemsPerSeriesPage = 18;
 	const itemsPerMoviePage = 10;
 
-	$effect(() => {
-		updateSEO(
-			'Home - Nonton Donghua Sub Indo Terlengkap',
-			'Pusat nonton donghua 3D subtitle Indonesia terbaru dan terupdate setiap hari.'
-		);
-	});
-
 	const filtered = $derived(
-		data.filter((d) => d.title.toLowerCase().includes($search.toLowerCase()))
+		catalogue.filter((d) => d.title.toLowerCase().includes($search.toLowerCase()))
 	);
 
 	const seriesFull = $derived(
@@ -51,8 +46,8 @@
 		moviesFull.slice((moviePage - 1) * itemsPerMoviePage, moviePage * itemsPerMoviePage)
 	);
 
-	const popularList = $derived([...data].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
-	const randomList = $derived([...data].sort(() => 0.5 - Math.random()).slice(0, 5));
+	const popularList = $derived([...catalogue].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
+	const randomList = $derived([...catalogue].sort(() => 0.5 - Math.random()).slice(0, 5));
 
 	onMount(() => {
 		const timer = setInterval(() => {
@@ -76,11 +71,21 @@
 	<title>Chinese Anime 3D - Nonton Donghua Sub Indo</title>
 	<meta
 		name="description"
-		content="Nonton streaming Chinese Anime 3D (Donghua) terbaru dengan subtitle Indonesia."
+		content="Nonton streaming Chinese Anime 3D (Donghua) terbaru dengan subtitle Indonesia gratis. Update setiap hari."
 	/>
+	<link rel="canonical" href={data.meta.canonical as string} />
+	<meta property="og:type" content="website" />
+	<meta property="og:title" content="Chinese Anime 3D - Nonton Donghua Sub Indo" />
+	<meta
+		property="og:description"
+		content="Nonton streaming Chinese Anime 3D (Donghua) terbaru dengan subtitle Indonesia gratis."
+	/>
+	<meta property="og:url" content={data.meta.canonical} />
+	<meta property="og:image" content={data.meta.image} />
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
-{#if data.length === 0}
+{#if catalogue.length === 0}
 	<div class="pb-10 animate-pulse">
 		<div class="w-full h-[280px] md:h-[450px] bg-bg-card mb-8 rounded-none md:rounded-b-2xl"></div>
 		<div class="max-w-7xl mx-auto px-4">

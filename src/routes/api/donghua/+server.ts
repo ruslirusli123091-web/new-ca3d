@@ -6,7 +6,14 @@ import { error, json, notFound } from '$lib/server/response';
 import { validateDonghua } from '$lib/server/validate';
 import { isSearchCrawler } from '$lib/server/bot';
 
-/** GET /api/donghua  (optionally ?id=...) */
+/**
+ * GET /api/donghua — public catalogue (also optionally ?id=...).
+ *
+ * Normally the HTML pages render this data server-side, so browsers rarely need
+ * this endpoint. It exists for the admin panel and for programmatic access, and
+ * is protected against bulk scraping: crawler UAs are rejected and the bucket is
+ * rate limited per IP.
+ */
 export const GET: RequestHandler = async (event) => {
 	const { url, request } = event;
 
@@ -41,17 +48,21 @@ export const GET: RequestHandler = async (event) => {
 		if (!isAdmin) {
 			list = list.filter((item) => !item.scheduledTime || Date.now() >= item.scheduledTime);
 		}
-		return json(
-			{ donghua: list },
-			200,
-			{ 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' }
-		);
-	} catch (e) {
+		// SECURITY: this must NOT be publicly cacheable. A shared/edge cache hit
+		// is served before the Worker runs, which would let an attacker warm the
+		// cache with a browser request and then scrape it with any client,
+		// bypassing the bot filter and rate limiter entirely. `private` keeps the
+		// response out of Cloudflare's shared cache while still allowing the
+		// visitor's own browser to reuse it briefly.
+		return json({ donghua: list }, 200, {
+			'Cache-Control': 'private, max-age=30'
+		});
+	} catch {
 		return error('Gagal memuat data', 500);
 	}
 };
 
-/** PUT /api/donghua - replace the full catalogue (admin only). */
+/** PUT /api/donghua — replace the full catalogue (admin only). */
 export const PUT: RequestHandler = async (event) => {
 	const blocked = await guard(event, { bucket: 'write', sameOrigin: true });
 	if (blocked) return blocked;
@@ -101,7 +112,7 @@ export const PUT: RequestHandler = async (event) => {
 	return json({ status: 'Saved', count: items.length });
 };
 
-/** DELETE /api/donghua - remove one item (admin only). */
+/** DELETE /api/donghua — remove one item (admin only). */
 export const DELETE: RequestHandler = async (event) => {
 	const blocked = await guard(event, { bucket: 'write', sameOrigin: true });
 	if (blocked) return blocked;

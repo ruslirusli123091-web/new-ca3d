@@ -1,11 +1,11 @@
-import type { Chat, Donghua } from '$lib/types';
+import type { Donghua } from '$lib/types';
 
 /**
  * All requests go to our own origin (`/api/...`) so the admin session cookie is
  * sent automatically and no CORS `*` is needed. `credentials: 'same-origin'`
  * keeps the session cookie attached while blocking cross-site credential leaks.
  *
- * Public visitors are anonymous: bookmarks, history and the comment nickname
+ * Public visitors are anonymous: bookmarks, history and the display nickname
  * are stored in their browser only, never on the server.
  */
 const jsonHeaders = (extra: Record<string, string> = {}) => ({
@@ -13,9 +13,6 @@ const jsonHeaders = (extra: Record<string, string> = {}) => ({
 	'X-Requested-With': 'ca3d-fetch',
 	...extra
 });
-
-let _chatsCache: { data: Chat[]; fetchedAt: number } | null = null;
-const CHAT_CACHE_TTL_MS = 45000;
 
 export interface ApiError extends Error {
 	status?: number;
@@ -35,7 +32,7 @@ export const api = {
 	fetchDonghua: async (): Promise<Donghua[]> => {
 		try {
 			const res = await fetch('/api/donghua', { credentials: 'same-origin' });
-			const json = (await res.json()) as Record<string, any>;
+			const json = (await res.json()) as { donghua?: Donghua[] };
 			return json.donghua || [];
 		} catch (error) {
 			console.warn('API Error', error);
@@ -49,36 +46,10 @@ export const api = {
 				credentials: 'same-origin'
 			});
 			if (!res.ok) return null;
-			const json = (await res.json()) as Record<string, any>;
-			if (json.donghua) return json.donghua as Donghua;
-			return json.donghuaList?.find((d: Donghua) => String(d.id) === String(id)) || null;
+			const json = (await res.json()) as { donghua?: Donghua };
+			return json.donghua ?? null;
 		} catch {
 			return null;
-		}
-	},
-
-	fetchChats: async (): Promise<Chat[]> => {
-		if (_chatsCache && Date.now() - _chatsCache.fetchedAt < CHAT_CACHE_TTL_MS) {
-			return _chatsCache.data;
-		}
-		try {
-			const res = await fetch('/api/chat', { credentials: 'same-origin' });
-			const json = (await res.json()) as Record<string, any>;
-			const data = json.comments || [];
-			_chatsCache = { data, fetchedAt: Date.now() };
-			return data;
-		} catch {
-			return [];
-		}
-	},
-
-	fetchBannedUsers: async (): Promise<string[]> => {
-		try {
-			const res = await fetch('/api/users', { credentials: 'same-origin' });
-			const json = (await res.json()) as Record<string, any>;
-			return json.banned_users || [];
-		} catch {
-			return [];
 		}
 	},
 
@@ -101,41 +72,6 @@ export const api = {
 		});
 	},
 
-	banUser: async (username: string) => {
-		return fetch('/api/users', {
-			method: 'PUT',
-			headers: jsonHeaders(),
-			credentials: 'same-origin',
-			body: JSON.stringify({ action: 'ban', username })
-		});
-	},
-
-	deleteChat: async (commentId: string) => {
-		return fetch('/api/chat', {
-			method: 'PUT',
-			headers: jsonHeaders(),
-			credentials: 'same-origin',
-			body: JSON.stringify({ action: 'delete', commentId })
-		});
-	},
-
-	// NOTE: there is intentionally no member login/register/sync API.
-	// Bookmarks, watch history and the comment nickname live entirely in the
-	// visitor's browser (see $lib/stores/library.ts). The only authenticated
-	// account left is the site administrator.
-
-	// ---- Comments (public, but rate limited + Turnstile + honeypot) ----
-	sendChat: async (chat: Partial<Chat>, turnstileToken?: string) => {
-		_chatsCache = null;
-		const res = await fetch('/api/chat', {
-			method: 'PUT',
-			headers: jsonHeaders(),
-			credentials: 'same-origin',
-			body: JSON.stringify({ action: 'add', comment: chat, turnstileToken })
-		});
-		return parse<{ status: string }>(res);
-	},
-
 	trackView: async (id: string) => {
 		return fetch('/api/view', {
 			method: 'POST',
@@ -146,12 +82,12 @@ export const api = {
 	},
 
 	// ---- Admin session (cookie based) ----
-	adminLogin: async (username: string, password: string, turnstileToken?: string) => {
+	adminLogin: async (username: string, password: string) => {
 		const res = await fetch('/api/auth/login', {
 			method: 'POST',
 			headers: jsonHeaders(),
 			credentials: 'same-origin',
-			body: JSON.stringify({ username, password, turnstileToken })
+			body: JSON.stringify({ username, password })
 		});
 		return parse<{ status: string; user: { username: string; display_name: string } }>(res);
 	},

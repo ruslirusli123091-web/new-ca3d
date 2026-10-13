@@ -1,4 +1,4 @@
-import type { Chat, Donghua, Episode } from '$lib/types';
+import type { Donghua, Episode } from '$lib/types';
 
 /** D1 row -> Donghua object (parses JSON columns defensively). */
 export function rowToDonghua(row: Record<string, unknown>): Donghua {
@@ -21,17 +21,5 @@ export function rowToDonghua(row: Record<string, unknown>): Donghua {
 		scheduledTime: row.scheduledTime ? Number(row.scheduledTime) : undefined,
 		lastUpdated: row.lastUpdated ? Number(row.lastUpdated) : undefined,
 		episodes
-	};
-}
-
-export function rowToChat(row: Record<string, unknown>): Chat {
-	return {
-		id: String(row.id),
-		user: String(row.user ?? ''),
-		text: String(row.text ?? ''),
-		timestamp: Number(row.timestamp ?? 0),
-		donghuaId: String(row.donghuaId ?? ''),
-		ep: String(row.ep ?? ''),
-		rating: row.rating != null ? Number(row.rating) : undefined
 	};
 }

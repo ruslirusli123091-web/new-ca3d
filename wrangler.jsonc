@@ -5,20 +5,19 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"pages_build_output_dir": ".svelte-kit/cloudflare",
 	"vars": {
-		"SITE_URL": "https://ca3d.site",
-		"TURNSTILE_SITE_KEY": ""
+		"SITE_URL": "https://ca3d.site"
 	},
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "anime-db",
-			"database_id": "1a5be1cb-adae-4862-b34e-6b014e56282c"
+			"database_name": "ca3d-db",
+			"database_id": "PASTE_YOUR_D1_DATABASE_ID_HERE"
 		}
 	],
 	"kv_namespaces": [
 		{
-			"binding": "CA3D_SUBSCRIPTIONS",
-			"id": "f394c8cae9014b9688f793b23adfef20"
+			"binding": "SUBSCRIPTIONS",
+			"id": "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
 		}
 	],
 	"ratelimits": [

@@ -5,8 +5,10 @@ import { error, json } from '$lib/server/response';
 import { sanitizeText } from '$lib/server/validate';
 
 /**
- * POST /api/view - increment a view counter.
- * Throttled harder than reads so view counts can't be inflated by scripts.
+ * POST /api/view — increment a view counter.
+ *
+ * Throttled harder than reads so view counts can't be inflated by scripts, and
+ * restricted to same-origin requests.
  */
 export const POST: RequestHandler = async (event) => {
 	const blocked = await guard(event, { bucket: 'view', sameOrigin: true });

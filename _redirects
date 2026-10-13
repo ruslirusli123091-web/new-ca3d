@@ -1,1 +1,7 @@
-/*  /index.html  200
+# Cloudflare Pages routing is handled by the SvelteKit Worker (_worker.js),
+# which renders every route server-side. A catch-all SPA rewrite to
+# /index.html would bypass SSR and cause an infinite redirect loop, so no
+# redirect rules are defined here.
+#
+# Add specific redirects below if you ever need them, e.g.:
+# /old-path  /new-path  301

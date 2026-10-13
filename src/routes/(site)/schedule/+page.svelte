@@ -1,35 +1,45 @@
 <script lang="ts">
 	import type { Donghua } from '$lib/types';
-	import { updateSEO } from '$lib/seo';
 	import { search } from '$lib/stores/search';
 	import MovieCard from '$components/common/MovieCard.svelte';
 	import SidebarItem from '$components/common/SidebarItem.svelte';
 	import SidebarButtons from '$components/common/SidebarButtons.svelte';
 
-	let { data }: { data: Donghua[] } = $props();
+	let { data }: { data: { donghua: Donghua[]; meta: Record<string, string> } } = $props();
+
+	const catalogue = $derived(data.donghua ?? []);
 
 	const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 	const todayIdx = new Date().getDay();
 	let activeDay = $state(days[todayIdx === 0 ? 6 : todayIdx - 1]);
 
 	const filtered = $derived(
-		data
+		catalogue
 			.filter((d) => d.day && d.day.includes(activeDay))
 			.filter((d) => d.title.toLowerCase().includes($search.toLowerCase()))
 	);
-	const popularList = $derived([...data].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
-	const randomList = $derived([...data].sort(() => 0.5 - Math.random()).slice(0, 5));
+	const popularList = $derived(
+		[...catalogue].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5)
+	);
+	const randomList = $derived([...catalogue].sort(() => 0.5 - Math.random()).slice(0, 5));
 
-	$effect(() => {
-		updateSEO(
-			'Jadwal Rilis Donghua Terlengkap',
-			'Lihat jadwal rilis donghua 3D sub indo setiap hari dari Senin sampai Minggu.'
-		);
-	});
+
 </script>
 
 <svelte:head>
 	<title>Jadwal Rilis Donghua Terlengkap - Chinese Anime 3D</title>
+	<meta
+		name="description"
+		content="Jadwal rilis donghua 3D sub indo setiap hari dari Senin sampai Minggu. Pantau episode terbaru di Chinese Anime 3D."
+	/>
+	<link rel="canonical" href={data.meta.canonical} />
+	<meta property="og:title" content="Jadwal Rilis Donghua Terlengkap - Chinese Anime 3D" />
+	<meta
+		property="og:description"
+		content="Jadwal rilis donghua 3D sub indo setiap hari dari Senin sampai Minggu."
+	/>
+	<meta property="og:url" content={data.meta.canonical as string} />
+	<meta property="og:type" content="website" />
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-4 py-8">

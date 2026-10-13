@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import type { Donghua, Chat } from '$lib/types';
+	import type { Donghua } from '$lib/types';
 	import { api } from '$lib/api';
 	import { getOptimizedImageUrl } from '$lib/utils/helpers';
-	import Turnstile from '$components/auth/Turnstile.svelte';
 
 	interface ServerData {
 		name: string;
@@ -18,19 +17,16 @@
 	let { data } = $props();
 
 	let isAuthenticated = $state(false);
-	let activeTab = $state<'anime' | 'chat' | 'users' | 'backup'>('anime');
+	let activeTab = $state<'anime' | 'backup'>('anime');
 	let editorMode = $state(false);
 
 	// Auth state
 	let user = $state('');
 	let pass = $state('');
 	let msg = $state('');
-	let turnstileToken = $state('');
 
 	// Data state
 	let donghuaList = $state<Donghua[]>([]);
-	let chatList = $state<Chat[]>([]);
-	let bannedList = $state<string[]>([]);
 	let searchQuery = $state('');
 
 	// Form state
@@ -49,14 +45,7 @@
 	let episodes = $state<EpisodeEditor[]>([]);
 
 	async function loadAllData() {
-		const [animeData, chatData, userData] = await Promise.all([
-			api.fetchDonghua(),
-			api.fetchChats(),
-			api.fetchBannedUsers()
-		]);
-		donghuaList = animeData;
-		chatList = chatData;
-		bannedList = userData;
+		donghuaList = await api.fetchDonghua();
 	}
 
 	onMount(async () => {
@@ -71,7 +60,7 @@
 		e.preventDefault();
 		msg = 'Memproses...';
 		try {
-			await api.adminLogin(user, pass, turnstileToken || undefined);
+			await api.adminLogin(user, pass);
 			isAuthenticated = true;
 			msg = '';
 			loadAllData();
@@ -246,29 +235,12 @@
 		}
 	}
 
-	async function handleBan(username: string) {
-		if (!confirm(`Blokir permanen user ${username}?`)) return;
-		const res = await api.banUser(username);
-		if (res.ok) {
-			alert('User berhasil di-banned');
-			await loadAllData();
-		}
-	}
-
-	async function handleDeleteChat(id: string) {
-		if (!confirm('Hapus komentar ini?')) return;
-		const res = await api.deleteChat(id);
-		if (res.ok) chatList = await api.fetchChats();
-	}
-
 	// ---- Backup ----
 	function handleDownloadBackup() {
 		const backupData = {
 			timestamp: Date.now(),
 			generated: new Date().toISOString(),
-			donghua: donghuaList,
-			comments: chatList,
-			bannedUsers: bannedList
+			donghua: donghuaList
 		};
 		const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
@@ -314,8 +286,6 @@
 			.filter((d) => d.title.toLowerCase().includes(searchQuery.toLowerCase()))
 			.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0))
 	);
-
-	const sortedChats = $derived([...chatList].sort((a, b) => b.timestamp - a.timestamp));
 </script>
 
 <svelte:head>
@@ -350,11 +320,6 @@
 						maxlength="128"
 					/>
 				</div>
-				{#if data?.turnstileSiteKey}
-					<div class="turnstile-slot">
-						<Turnstile siteKey={data.turnstileSiteKey} onVerify={(t) => (turnstileToken = t)} />
-					</div>
-				{/if}
 				<button type="submit" class="admin-login-neu-submit">LOGIN DASHBOARD</button>
 			</form>
 			{#if msg}<p class="admin-login-neu-msg">{msg}</p>{/if}
@@ -387,40 +352,6 @@
 						/></svg
 					>
 					Anime Manager
-				</button>
-				<button
-					onclick={() => (activeTab = 'chat')}
-					class={[
-						'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all',
-						activeTab === 'chat' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-					].join(' ')}
-				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-						/></svg
-					>
-					Komentar
-				</button>
-				<button
-					onclick={() => (activeTab = 'users')}
-					class={[
-						'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all',
-						activeTab === 'users' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-					].join(' ')}
-				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-						/></svg
-					>
-					Blacklist User
 				</button>
 				<button
 					onclick={() => (activeTab = 'backup')}
@@ -471,13 +402,6 @@
 						].join(' ')}>A</button
 					>
 					<button
-						onclick={() => (activeTab = 'chat')}
-						class={[
-							'p-2 rounded-lg border',
-							activeTab === 'chat' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-800 border-admin-ink text-slate-400'
-						].join(' ')}>C</button
-					>
-					<button
 						onclick={() => (activeTab = 'backup')}
 						class={[
 							'p-2 rounded-lg border',
@@ -507,12 +431,16 @@
 									</div>
 								</div>
 								<div class="bg-slate-900 p-4 rounded-xl border border-admin-ink">
-									<div class="text-slate-500 text-xs font-bold uppercase mb-1">Total Komentar</div>
-									<div class="text-2xl font-black text-green-400">{chatList.length}</div>
+									<div class="text-slate-500 text-xs font-bold uppercase mb-1">Total Episode</div>
+									<div class="text-2xl font-black text-green-400">
+										{donghuaList.reduce((a, b) => a + (b.episodes?.length || 0), 0)}
+									</div>
 								</div>
 								<div class="bg-slate-900 p-4 rounded-xl border border-admin-ink">
-									<div class="text-slate-500 text-xs font-bold uppercase mb-1">Banned Users</div>
-									<div class="text-2xl font-black text-red-400">{bannedList.length}</div>
+									<div class="text-slate-500 text-xs font-bold uppercase mb-1">Movie</div>
+									<div class="text-2xl font-black text-red-400">
+										{donghuaList.filter((d) => d.type === 'movie').length}
+									</div>
 								</div>
 							</div>
 
@@ -854,133 +782,6 @@
 					{/if}
 				{/if}
 
-				<!-- CHAT TAB -->
-				{#if activeTab === 'chat'}
-					<div class="space-y-6 animate-fade-in pb-20">
-						<div
-							class="flex justify-between items-center bg-slate-900 p-4 rounded-xl border border-admin-ink"
-						>
-							<h2 class="text-xl font-bold text-white">Manajemen Komentar</h2>
-							<button
-								onclick={() => api.fetchChats().then((c) => (chatList = c))}
-								class="text-xs bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg border border-admin-ink transition"
-								>⟳ Refresh</button
-							>
-						</div>
-						<div class="bg-slate-900 rounded-xl border border-admin-ink overflow-x-auto">
-							<table class="w-full text-left text-sm text-slate-400 min-w-[600px]">
-								<thead class="bg-slate-800/50 text-slate-200 font-bold uppercase text-xs">
-									<tr><th class="p-4">User</th><th class="p-4">Pesan</th><th class="p-4 text-right">Aksi</th></tr>
-								</thead>
-								<tbody class="divide-y divide-slate-800">
-									{#each sortedChats as c (c.id)}
-										{@const dh = donghuaList.find((x) => x.id === c.donghuaId)}
-										<tr class="hover:bg-slate-800/50 transition">
-											<td class="p-4 w-48 align-top">
-												<div class="flex items-center gap-3">
-													<div
-														class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs"
-													>
-														{c.user[0]?.toUpperCase()}
-													</div>
-													<div>
-														<div class="font-bold text-white text-sm">{c.user}</div>
-														<div class="text-[10px] text-slate-500">
-															{new Date(c.timestamp).toLocaleDateString()}
-														</div>
-													</div>
-												</div>
-											</td>
-											<td class="p-4 align-top">
-												<div
-													class="bg-slate-950/50 p-2 rounded-lg border border-admin-ink/50 mb-1 text-slate-300 text-sm"
-												>
-													"{c.text}"
-												</div>
-												<div class="text-[10px] text-slate-500 flex items-center gap-2">
-													Di:
-													<span
-														class="bg-slate-800 px-1.5 py-0.5 rounded border border-admin-ink text-slate-300"
-														>{dh?.title || 'Unknown'} - Ep {c.ep}</span
-													>
-												</div>
-											</td>
-											<td class="p-4 text-right align-middle">
-												<div class="flex flex-col gap-2 items-end">
-													<button
-														onclick={() => handleDeleteChat(c.id)}
-														class="w-full md:w-auto flex items-center justify-center gap-1 bg-red-900/10 text-red-500 border border-red-900/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition"
-														>Hapus Pesan</button
-													>
-													<button
-														onclick={() => handleBan(c.user)}
-														class="w-full md:w-auto flex items-center justify-center gap-1 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-admin-ink px-3 py-1.5 rounded-lg text-xs font-bold transition"
-														>Ban User</button
-													>
-												</div>
-											</td>
-										</tr>
-									{/each}
-									{#if chatList.length === 0}
-										<tr
-											><td colspan="3" class="p-12 text-center text-slate-500"
-												>Tidak ada komentar baru.</td
-											></tr
-										>
-									{/if}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{/if}
-
-				<!-- USERS TAB -->
-				{#if activeTab === 'users'}
-					<div class="space-y-6 animate-fade-in max-w-3xl mx-auto pb-20">
-						<div
-							class="flex justify-between items-center bg-slate-900 p-4 rounded-xl border border-admin-ink"
-						>
-							<h2 class="text-xl font-bold text-white">Blacklist User</h2>
-							<button
-								onclick={() => api.fetchBannedUsers().then((u) => (bannedList = u))}
-								class="text-xs bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg border border-admin-ink transition"
-								>⟳ Refresh</button
-							>
-						</div>
-						<div class="bg-slate-900 rounded-xl border border-admin-ink p-6">
-							{#if bannedList.length === 0}
-								<div class="text-center py-12 text-slate-500 border-2 border-dashed border-admin-ink rounded-xl">
-									<span class="text-4xl block mb-2 opacity-30">🛡</span>
-									Tidak ada user yang di-banned.
-								</div>
-							{:else}
-								<div class="grid grid-cols-1 gap-3">
-									{#each bannedList as u, i (i)}
-										<div
-											class="flex justify-between items-center p-4 bg-slate-950 border border-admin-ink rounded-lg"
-										>
-											<div class="flex items-center gap-4">
-												<div
-													class="w-10 h-10 rounded bg-red-900/10 text-red-500 flex items-center justify-center font-bold border border-red-900/20"
-												>
-													🛡
-												</div>
-												<div>
-													<div class="font-bold text-slate-200 text-lg">{u}</div>
-													<div class="text-xs text-slate-500">Status: Restricted</div>
-												</div>
-											</div>
-											<span
-												class="text-[10px] uppercase font-bold text-red-500 bg-red-900/10 px-3 py-1.5 rounded border border-red-900/20"
-												>Permanent Ban</span
-											>
-										</div>
-									{/each}
-								</div>
-							{/if}
-						</div>
-					</div>
-				{/if}
 
 				<!-- BACKUP TAB -->
 				{#if activeTab === 'backup'}
@@ -988,7 +789,7 @@
 						<div class="bg-slate-900 p-6 rounded-xl border border-admin-ink text-center">
 							<h2 class="text-2xl font-bold text-white mb-2">Backup &amp; Restore</h2>
 							<p class="text-slate-400 text-sm">
-								Download semua data (Anime, Komentar, User Banned) ke file JSON atau restore data dari file
+								Download semua data anime dan episode ke file JSON, atau restore dari file
 								backup.
 							</p>
 						</div>
@@ -999,7 +800,7 @@
 							>
 								<h3 class="font-bold text-white mb-2">Download Data</h3>
 								<p class="text-xs text-slate-500 mb-6 px-4">
-									Mengunduh file .json berisi semua daftar anime, episode, history chat, dan banned user.
+									Mengunduh file .json berisi seluruh katalog anime beserta daftar episodenya.
 								</p>
 								<button
 									onclick={handleDownloadBackup}
@@ -1035,7 +836,7 @@
 
 						<div class="bg-red-900/20 border border-red-900/50 rounded-lg p-4 text-xs text-red-400">
 							<strong>Catatan Penting:</strong> Fitur Restore difokuskan untuk mengembalikan <u>Data Anime &amp; Episode</u
-							>. Data Komentar dan User perlu penanganan manual database jika terjadi kerusakan fatal.
+							>. Pastikan Anda menyimpan file backup ini di tempat yang aman.
 						</div>
 					</div>
 				{/if}

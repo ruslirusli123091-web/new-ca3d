@@ -8,7 +8,22 @@ const config = {
 		adapter: adapter({
 			routes: {
 				include: ['/*'],
-				exclude: ['/_app/*', '/favicon.ico', '/*.png', '/*.jpg', '/*.jpeg', '/*.webp', '/manifest.json', '/sw.js']
+				// Static files served straight from the edge, bypassing the Worker.
+				// Excluding them keeps SSR cost down. NOTE: robots.txt and
+				// manifest.json must be listed here, otherwise the Worker would
+				// render HTML for them instead of serving the real file.
+				exclude: [
+					'/_app/*',
+					'/favicon.ico',
+					'/*.png',
+					'/*.jpg',
+					'/*.jpeg',
+					'/*.webp',
+					'/*.svg',
+					'/manifest.json',
+					'/robots.txt',
+					'/sw.js'
+				]
 			}
 		}),
 		// CSRF protection: SvelteKit verifies the Origin header on form

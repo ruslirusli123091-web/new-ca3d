@@ -1,7 +1,17 @@
 -- ============================================================
--- CA3D (SvelteKit) - Cloudflare D1 schema
+-- CA3D (SvelteKit) — Cloudflare D1 schema
+--
 -- Run locally:  npm run db:migrate:local
 -- Run remote:   npm run db:migrate:remote
+--
+-- NOTE: there is no `users` table and no `admins` table.
+--
+--  * Public visitors are anonymous. Bookmarks, watch history and the display
+--    nickname live in each visitor's browser (localStorage), so no personal
+--    data is stored server-side.
+--  * Admin credentials come from environment variables
+--    (ADMIN_USERNAME / ADMIN_PASSWORD), so a leaked database dump exposes no
+--    credentials at all.
 -- ============================================================
 
 -- Donghua / anime catalogue ------------------------------------------------
@@ -20,55 +30,9 @@ CREATE TABLE IF NOT EXISTS donghua (
 );
 CREATE INDEX IF NOT EXISTS idx_donghua_lastUpdated ON donghua (lastUpdated DESC);
 CREATE INDEX IF NOT EXISTS idx_donghua_views ON donghua (views DESC);
+CREATE INDEX IF NOT EXISTS idx_donghua_type ON donghua (type);
 
--- ============================================================
--- NOTE: there is intentionally NO `users` table.
---
--- Public visitors are anonymous: bookmarks, watch history and the
--- comment nickname are stored in each visitor's own browser
--- (localStorage) and never reach the server. The only account in
--- this system is the site administrator (see `admins` below).
--- ============================================================
-
--- Admins --------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS admins (
-	username   TEXT PRIMARY KEY,
-	password   TEXT NOT NULL
-);
-
--- Banned users (comment/chat abuse) ----------------------------------------
-CREATE TABLE IF NOT EXISTS banned_users (
-	username TEXT PRIMARY KEY,
-	bannedAt INTEGER
-);
-
--- Comments / ratings --------------------------------------------------------
-CREATE TABLE IF NOT EXISTS comments (
-	id        TEXT PRIMARY KEY,
-	user      TEXT NOT NULL,
-	text      TEXT NOT NULL,
-	timestamp INTEGER NOT NULL,
-	avatar    TEXT DEFAULT '',
-	donghuaId TEXT DEFAULT '',
-	ep        TEXT DEFAULT '',
-	rating    INTEGER
-);
-CREATE INDEX IF NOT EXISTS idx_comments_donghua ON comments (donghuaId, ep);
-CREATE INDEX IF NOT EXISTS idx_comments_ts ON comments (timestamp DESC);
-
--- Persistent server-side sessions (optional hardening layer) ----------------
-CREATE TABLE IF NOT EXISTS sessions (
-	id         TEXT PRIMARY KEY,
-	username   TEXT NOT NULL,
-	role       TEXT NOT NULL,
-	createdAt  INTEGER NOT NULL,
-	expiresAt  INTEGER NOT NULL,
-	ip         TEXT,
-	userAgent  TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expiresAt);
-
--- Audit log (security monitoring) ------------------------------------------
+-- Audit log (security monitoring: admin logins, failures) ------------------
 CREATE TABLE IF NOT EXISTS audit_log (
 	id        INTEGER PRIMARY KEY AUTOINCREMENT,
 	ts        INTEGER NOT NULL,
@@ -78,17 +42,3 @@ CREATE TABLE IF NOT EXISTS audit_log (
 	detail    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log (ts DESC);
-
--- ============================================================
--- Create your admin account with a strong, salted hash.
---
---   1. Generate a hash:
---        node scripts/hash-password.mjs "YourStrongPassword"
---   2. Insert it (replace <USERNAME> and <HASH>):
---
---        INSERT OR REPLACE INTO admins (username, password)
---        VALUES ('<USERNAME>', '<HASH>');
---
--- Never store a plain or unsalted password. The app verifies PBKDF2
--- hashes and will refuse the legacy placeholder format.
--- ============================================================

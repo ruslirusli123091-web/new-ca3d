@@ -2,12 +2,12 @@
  * Anti-scraping / anti-bot heuristics.
  *
  * We never block normal browsers, only clearly automated or abusive clients
- * hitting the JSON API. Search engine crawlers are allowed for the public
- * HTML pages (good for SEO) but are not allowed to hammer the raw data API.
+ * hitting the JSON API. Search engine crawlers are allowed for the public HTML
+ * pages (good for SEO) but are not allowed to hammer the raw data API.
  */
 
 const SCRAPER_UA =
-	/(python-requests|python-urllib|scrapy|curl\/|wget\/|httpclient|go-http-client|java\/|libwww|okhttp|axios\/|node-fetch|phantomjs|headlesschrome|puppeteer|playwright|bot\b|spider|crawl|scrape|httrack|wget|masscan|nikto|sqlmap|nmap)/i;
+	/(python-requests|python-urllib|scrapy|curl\/|wget\/|httpclient|go-http-client|java\/|libwww|okhttp|axios\/|node-fetch|phantomjs|headlesschrome|puppeteer|playwright|bot\b|spider|crawl|scrape|httrack|masscan|nikto|sqlmap|nmap)/i;
 
 const ALLOWED_CRAWLER = /(googlebot|bingbot|yandex|duckduckbot|baiduspider|applebot|slurp)/i;
 
@@ -22,15 +22,6 @@ export function isLikelyBot(request: Request): boolean {
 export function isSearchCrawler(request: Request): boolean {
 	const ua = request.headers.get('User-Agent') || '';
 	return ALLOWED_CRAWLER.test(ua);
-}
-
-/**
- * Honeypot check: a hidden form field real users never fill.
- * Any non-empty value means a bot filled it.
- */
-export function honeypotTripped(body: Record<string, unknown>): boolean {
-	const trap = body?.website ?? body?.hp ?? body?._trap;
-	return typeof trap === 'string' && trap.trim().length > 0;
 }
 
 /** Basic same-origin enforcement for state-changing API calls. */

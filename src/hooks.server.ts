@@ -11,14 +11,16 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 /**
- * Content-Security-Policy. Note: the video player embeds third-party iframes
- * (configurable), so frame-src is intentionally permissive; everything else is
- * locked to our own origin plus the image/font CDNs we actually use.
+ * Content-Security-Policy.
+ *
+ * No Turnstile and no third-party scripts are needed anymore, so script-src is
+ * locked to our own origin. frame-src stays permissive because the video player
+ * embeds external iframes, and img-src allows https for the image CDN.
  */
 function buildCsp(dev: boolean): string {
 	const scriptSrc = dev
-		? "'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com"
-		: "'self' 'unsafe-inline' https://challenges.cloudflare.com";
+		? "'self' 'unsafe-inline' 'unsafe-eval'"
+		: "'self' 'unsafe-inline'";
 	return [
 		"default-src 'self'",
 		`script-src ${scriptSrc}`,
@@ -27,7 +29,7 @@ function buildCsp(dev: boolean): string {
 		"img-src 'self' data: blob: https:",
 		"media-src 'self' https: blob:",
 		"frame-src 'self' https:",
-		"connect-src 'self' https://challenges.cloudflare.com",
+		"connect-src 'self'",
 		"object-src 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",
@@ -39,22 +41,21 @@ function buildCsp(dev: boolean): string {
 export const handle: Handle = async ({ event, resolve }) => {
 	const dev = event.url.hostname === 'localhost' || event.url.hostname === '127.0.0.1';
 
-	// Attach session (if any) for use in load functions / endpoints.
+	// Attach the admin session (if any) for load functions and endpoints.
 	const token = event.cookies.get(SESSION_COOKIE);
 	event.locals.session = await readSession(event.platform, token);
 
 	const response = await resolve(event);
 
-	// Global security headers on every response.
 	for (const [k, v] of Object.entries(SECURITY_HEADERS)) response.headers.set(k, v);
 
-	// CSP only on HTML documents (JSON APIs already set their own headers).
+	// CSP only on HTML documents (JSON endpoints set their own headers).
 	const contentType = response.headers.get('Content-Type') || '';
 	if (contentType.includes('text/html')) {
 		response.headers.set('Content-Security-Policy', buildCsp(dev));
 	}
 
-	// HSTS in production (Cloudflare also sets this, belt and braces).
+	// HSTS in production (Cloudflare also sets this; belt and braces).
 	if (!dev) {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 	}

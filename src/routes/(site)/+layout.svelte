@@ -8,9 +8,6 @@
 
 	let { data, children } = $props();
 
-	let searchQuery = $state('');
-	search.subscribe((v) => (searchQuery = v));
-
 	onMount(() => {
 		// Scroll to top on navigation, like the original ClientApp.
 		const unsub = page.subscribe(() => window.scrollTo(0, 0));
