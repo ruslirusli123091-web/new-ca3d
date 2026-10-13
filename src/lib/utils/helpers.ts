@@ -11,6 +11,15 @@ export const getOptimizedImageUrl = (url: string, width: number, quality = 60) =
 	return `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=${width}&q=${quality}&output=webp`;
 };
 
+/**
+ * Very small admin-only thumbnails. The dashboard shows many posters at once,
+ * so using the public card's 300px/quality-60 preset made the admin reload
+ * needlessly expensive. A 120px WebP at quality 42 is enough for a 2:3 card
+ * preview and is typically 4-8x smaller than the old request.
+ */
+export const getAdminThumbnailUrl = (url: string, width = 120) =>
+	getOptimizedImageUrl(url, width, 42);
+
 export const generateSrcSet = (url: string, widths: number[], quality = 60) => {
 	return widths.map((w) => `${getOptimizedImageUrl(url, w, quality)} ${w}w`).join(', ');
 };

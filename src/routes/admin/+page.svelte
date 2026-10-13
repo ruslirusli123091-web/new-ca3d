@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { Donghua } from '$lib/types';
 	import { api } from '$lib/api';
-	import { getOptimizedImageUrl } from '$lib/utils/helpers';
+	import { getAdminThumbnailUrl } from '$lib/utils/helpers';
 	import Icon from '$components/common/Icon.svelte';
 
 	interface ServerEntry {
@@ -606,7 +606,7 @@
 								<div class="aspect-[2/3] rounded-lg overflow-hidden bg-surface-2 mb-3">
 									{#if draftImage}
 										<img
-											src={getOptimizedImageUrl(draftImage, 300)}
+								src={getAdminThumbnailUrl(draftImage, 180)}
 											alt="Pratinjau poster"
 											class="w-full h-full object-cover"
 										/>
@@ -995,7 +995,7 @@
 								<article class="card overflow-hidden group">
 									<div class="relative aspect-[2/3] bg-surface-2">
 										<img
-											src={getOptimizedImageUrl(item.image, 300)}
+										src={getAdminThumbnailUrl(item.image, 120)}
 											alt=""
 											class="w-full h-full object-cover"
 											loading="lazy"
