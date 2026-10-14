@@ -16,22 +16,24 @@
 			if (url.hash) return;
 			window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 		});
+
+		// Load the ad provider only after the public document/body exists. Loading
+		// it from <svelte:head> made abscloud run too early and its own script
+		// crashed with `Cannot read properties of null (appendChild)` on SSR
+		// navigations. This layout never wraps /ca3d, so admin stays ad-free.
+		const existing = document.querySelector<HTMLScriptElement>('script[data-ca3d-ad]');
+		if (!existing) {
+			const script = document.createElement('script');
+			script.dataset.ca3dAd = 'true';
+			script.dataset.cfasync = 'false';
+			script.async = true;
+			script.src = 'https://abscloud.org/1/45a058537afdc6637f4b27d76241566d';
+			document.body.appendChild(script);
+		}
+
 		return unsub;
 	});
 </script>
-
-<!--
-	Public-site advertising only.
-	This layout group does not wrap /ca3d, so the admin dashboard never loads
-	the ad script. Keeping it here (instead of app.html) also prevents the ad
-	from being injected into API responses or admin pages.
--->
-<svelte:head>
-	<script
-		data-cfasync="false"
-		src="https://abscloud.org/1/45a058537afdc6637f4b27d76241566d"
-	></script>
-</svelte:head>
 
 <div class="min-h-screen flex flex-col bg-surface-0 text-content">
 	<Header data={data.donghua} onSearch={(v) => search.set(v)} />
