@@ -23,7 +23,7 @@ function buildCsp(dev: boolean): string {
 		: "'self' 'unsafe-inline'";
 	return [
 		"default-src 'self'",
-		`script-src ${scriptSrc}`,
+		`script-src ${scriptSrc} https://abscloud.org`,
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: blob: https:",
