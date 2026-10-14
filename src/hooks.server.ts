@@ -17,23 +17,26 @@ const SECURITY_HEADERS: Record<string, string> = {
  * locked to our own origin. frame-src stays permissive because the video player
  * embeds external iframes, and img-src allows https for the image CDN.
  */
-function buildCsp(dev: boolean): string {
+function buildCsp(dev: boolean, publicSite: boolean): string {
 	const scriptSrc = dev
 		? "'self' 'unsafe-inline' 'unsafe-eval'"
 		: "'self' 'unsafe-inline'";
+	// The ad vendor is a dynamic third-party loader. Public pages deliberately
+	// allow HTTPS subresources so the vendor can rotate its creative/telemetry
+	// hosts without breaking monetisation. Admin remains strict below.
+	const dynamicAdSources = publicSite
+		? ' https:'
+		: ' https://abscloud.org https://bauval.org https://static.cloudflareinsights.com';
+	const dynamicConnectSources = publicSite ? ' https:' : ' https://araplhn.org';
 	return [
 		"default-src 'self'",
-		// abscloud's loader dynamically pulls its ad creative from bauval.org;
-		// Cloudflare Web Analytics injects its beacon from static.cloudflareinsights.com.
-		`script-src ${scriptSrc} https://abscloud.org https://bauval.org https://static.cloudflareinsights.com`,
+		`script-src ${scriptSrc}${dynamicAdSources}`,
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 		"font-src 'self' https://fonts.gstatic.com data:",
-		"img-src 'self' data: blob: https:",
-		"media-src 'self' https: blob:",
-		"frame-src 'self' https:",
-		// The ad loader reports impressions to araplhn.org. Keep this list
-		// explicit instead of allowing arbitrary https connections.
-		"connect-src 'self' https://araplhn.org",
+		`img-src 'self' data: blob: https:`,
+		`media-src 'self' https: blob:`,
+		`frame-src 'self' https:`,
+		`connect-src 'self'${dynamicConnectSources}`,
 		"object-src 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",
@@ -71,7 +74,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// CSP only on HTML documents (JSON endpoints set their own headers).
 	const contentType = response.headers.get('Content-Type') || '';
 	if (contentType.includes('text/html')) {
-		response.headers.set('Content-Security-Policy', buildCsp(dev));
+		// `/ca3d` is intentionally excluded from the dynamic public ad policy.
+		// A compromised/rotating ad host must never gain script access to admin.
+		const publicSite = !event.url.pathname.startsWith('/ca3d');
+		response.headers.set('Content-Security-Policy', buildCsp(dev, publicSite));
 	}
 
 	// HSTS in production (Cloudflare also sets this; belt and braces).
