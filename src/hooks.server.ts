@@ -23,13 +23,17 @@ function buildCsp(dev: boolean): string {
 		: "'self' 'unsafe-inline'";
 	return [
 		"default-src 'self'",
-		`script-src ${scriptSrc} https://abscloud.org`,
+		// abscloud's loader dynamically pulls its ad creative from bauval.org;
+		// Cloudflare Web Analytics injects its beacon from static.cloudflareinsights.com.
+		`script-src ${scriptSrc} https://abscloud.org https://bauval.org https://static.cloudflareinsights.com`,
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: blob: https:",
 		"media-src 'self' https: blob:",
 		"frame-src 'self' https:",
-		"connect-src 'self'",
+		// The ad loader reports impressions to araplhn.org. Keep this list
+		// explicit instead of allowing arbitrary https connections.
+		"connect-src 'self' https://araplhn.org",
 		"object-src 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",
